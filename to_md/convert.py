@@ -36,9 +36,18 @@ def _paper_md(p: dict, detailed: bool) -> str:
     lines.append(f"<sub>英文标题：{p['title']}</sub>")
     lines.append("")
 
+    # 英文原版摘要（折叠，便于快速查阅）
+    if p.get("abstract"):
+        lines.append(f"<details><summary>📄 Abstract（点击展开）</summary>")
+        lines.append("")
+        lines.append(p["abstract"].strip())
+        lines.append("")
+        lines.append("</details>")
+        lines.append("")
+
     # papers.cool 链接
     pc_url = f"https://papers.cool/arxiv/{p['id']}"
-    lines.append(f"[papers.coool / Kimi]({pc_url})")
+    lines.append(f"[papers.cool / Kimi]({pc_url})")
     lines.append("")
 
     # Kimi Q&A 摘要（如已抓取）

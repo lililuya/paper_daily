@@ -36,6 +36,12 @@
   .detail { font-size: 13px; color: #374151; margin-top: 8px; display: none;
     border-top: 1px dashed var(--border); padding-top: 8px; }
   .card.open .detail { display: block; }
+  .abstract { font-size: 12.5px; color: #4b5563; margin-top: 8px; cursor: pointer;
+    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+    border-left: 2px solid var(--border); padding-left: 8px; }
+  .abstract.open { display: block; -webkit-line-clamp: unset; }
+  .abstract::after { content: "（点击展开/收起）"; color: var(--accent); font-size: 11px; }
+  .abstract.open::after { content: "（收起）"; }
   .more { font-size: 12px; color: var(--accent); cursor: pointer; user-select: none;
     display: inline-block; margin-top: 6px; }
   .tag { display: inline-block; background: var(--tag-bg); color: var(--tag);
@@ -93,7 +99,8 @@ function card(p, q) {
   const tags = (p.tags || []).map(t => `<span class="tag">${esc(t)}</span>`).join("");
   const up = p.hf_upvotes ? ` <span class="upvote">▲ ${p.hf_upvotes}</span>` : "";
   const hl = (p.highlights || []).length ? `<div class="hl">亮点：${mark(p.highlights.join("；"), q)}</div>` : "";
-  const detail = p.summary_zh ? `<div class="detail">${mark(p.summary_zh, q)}<div style="margin-top:6px;color:var(--muted);font-size:12px">${esc(p.abstract ? p.abstract.slice(0, 300) + "…" : "")}</div></div><span class="more" onclick="this.parentNode.classList.toggle('open')">展开/收起详细摘要</span>` : "";
+  const detail = p.summary_zh ? `<div class="detail">${mark(p.summary_zh, q)}</div><span class="more" onclick="this.parentNode.classList.toggle('open')">展开/收起详细摘要</span>` : "";
+  const abstract = p.abstract ? `<div class="abstract" onclick="this.classList.toggle('open')" title="点击展开全文">${mark(p.abstract, q)}</div>` : "";
   const pcUrl = `https://papers.cool/arxiv/${p.id}`;
   const kimi = (p.kimi_qa && p.kimi_qa.length)
     ? `<details class="kimi"><summary>📘 Kimi 深度解读（${p.kimi_qa.length} 组 Q&A）</summary>${p.kimi_qa.map((qa, i) => `<p style="margin:8px 0 4px;"><b>Q${i+1}. ${esc(qa[0])}</b></p><div style="font-size:13px;">${mark(qa[1] || "", q)}</div>`).join("")}</details>`
@@ -105,7 +112,7 @@ function card(p, q) {
     <div class="meta">${authors ? esc(authors) + " · " : ""}<a href="${p.url}" target="_blank">原文</a> · <a href="${p.pdf_url || p.url + ".pdf"}" target="_blank">PDF</a></div>
     <div>${tags}</div>
     <div class="oneline">${mark(p.oneline_zh || "", q)}</div>
-    ${hl}${detail}${kimi}
+    ${abstract}${hl}${detail}${kimi}
   </div>`;
 }
 
