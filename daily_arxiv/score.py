@@ -4,8 +4,8 @@
 1. 关键词命中封顶 —— 标题每个关键词最多计 1 次、摘要最多计 2 次，
    避免某词在摘要中反复出现导致分数爆炸（如 "agent" 出现 20 次）。
 2. 单方向贡献封顶 —— 每个方向对总分的贡献有上限，避免通用词方向霸榜。
-3. 核心方向配额 —— select_balanced 对三大核心方向轮询选取，
-   保证图像编辑 / 视频模型 / Agent 在日报中都有足够篇幅。
+3. 核心方向配额 —— select_balanced 对核心方向轮询选取，
+   保证图像编辑 / 视频模型 / Agent / 数据工程在日报中都有足够篇幅。
 """
 
 from .config import CORE_DIRECTIONS, INTERESTS, SCORE_THRESHOLD
@@ -65,7 +65,7 @@ def _primary_direction(paper: dict) -> str:
 
 
 def select_balanced(papers: list, max_n: int) -> list:
-    """三大核心方向轮询配额选取，保证每个方向都有曝光，剩余按总分补齐。"""
+    """核心方向轮询配额选取，保证每个方向都有曝光，剩余按总分补齐。"""
     buckets = {d: [] for d in CORE_DIRECTIONS}
     rest = []
     for p in papers:  # papers 已按分数降序

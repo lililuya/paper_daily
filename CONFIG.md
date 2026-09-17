@@ -9,7 +9,7 @@
   ┌─ 1. 抓取 arXiv（按类别+近2天） + HuggingFace Daily Papers
   ├─ 2. 去重（seen_ids.json 记录历史论文 ID）
   ├─ 3. 规则打分（关键词加权，筛选出候选）
-  ├─ 4. DeepSeek 增强（中文标题/摘要/推荐指数，约 20 篇）
+  ├─ 4. DeepSeek 增强（中文标题/摘要/推荐指数，约 25 篇）
   ├─ 5. 抓取 papers.cool 的 Kimi 深度解读（Q&A）
   ├─ 6. 生成 data/日期.md 日报 + data/日期.jsonl 数据
   └─ 7. 自动提交回 GitHub → Pages 网站更新
@@ -53,7 +53,7 @@ INTERESTS = {
 
 ```python
     "数据工程": {
-        "weight": 2,
+        "weight": 5,
         "keywords": [
             "data curation", "data-centric", ..., "data wrangling",  # ← 新加
         ],
@@ -72,16 +72,16 @@ INTERESTS = {
 ## 三、核心方向配额
 
 ```python
-CORE_DIRECTIONS = ["图像编辑", "视频模型", "Agent"]
+CORE_DIRECTIONS = ["图像编辑", "视频模型", "Agent", "数据工程"]
 ```
 
-选每日精选时，这三大方向**轮流取**，防止某一个方向（如 Agent 论文量大）霸榜、小众方向（如图像编辑）被挤掉。想把某方向提升为核心，把它加进这个列表并把 `INTERESTS` 里的 weight 改成 5。
+选每日精选时，这些核心方向**轮流取**，防止某一个方向（如 Agent 论文量大）霸榜、小众方向（如图像编辑）被挤掉。想把某方向提升为核心，把它加进这个列表并把 `INTERESTS` 里的 weight 改成 5。
 
 ## 四、每日篇数与门槛
 
 ```python
 SCORE_THRESHOLD = 5        # 最低规则分，低于此分丢弃（调高→更挑剔，调低→更全）
-MAX_LLM_PAPERS = 20       # 每日精选篇数上限（觉得多/少就改这个）
+MAX_LLM_PAPERS = 25       # 每日精选篇数上限（觉得多/少就改这个）
 DEEP_SUMMARY_RATING = 4   # 推荐指数 ≥4 的论文才生成详细中文摘要
 ```
 

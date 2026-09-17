@@ -9,10 +9,10 @@
 | **图像编辑** | 核心 ×5 | image editing、inpainting、subject-driven、image composition |
 | **视频模型** | 核心 ×5 | video generation、video diffusion、text-to-video、video editing |
 | **Agent** | 核心 ×5 | LLM agent、tool use、multi-agent、GUI agent、agentic |
+| **数据工程** | 核心 ×5 | data curation、data selection、synthetic data、data-centric |
 | 大语言模型 | 2 | LLM、reasoning、MoE、RLHF、RAG、LoRA |
 | 多模态 | 2 | multimodal、vision-language、text-to-image、diffusion |
 | 系统/基础设施 | 2 | distributed training、inference optimization、KV cache、quantization |
-| 数据工程 | 2 | data curation、data selection、synthetic data、data-centric |
 | HF 社区精选 | 保底 | 自动包含 HuggingFace Daily Papers |
 
 > 完整配置说明（改关键词、调方向、改每日篇数、运行参数等）见 **[CONFIG.md](CONFIG.md)**。
@@ -46,7 +46,7 @@ fetch_arxiv → fetch_hf → dedup → score → select_balanced → DeepSeek �
 | Variable | 默认值 | 说明 |
 |---|---|---|
 | `MODEL_NAME` | `deepseek-chat` | LLM 模型名 |
-| `MAX_LLM_PAPERS` | `20` | 每日精选篇数上限 |
+| `MAX_LLM_PAPERS` | `25` | 每日精选篇数上限 |
 
 ### 启用 Pages
 
