@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>前研日报 · Frontier Research Daily</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #ffffff; --text: #1c1e21; --muted: #6b7280;
+    --border: #e5e7eb; --accent: #185fa5; --accent-light: #e6f1fb;
+    --star: #ef9f27; --tag: #0f6e56; --tag-bg: #e1f5ee;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+         background: var(--bg); color: var(--text); line-height: 1.6; }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 24px 16px 60px; }
+  header h1 { font-size: 22px; font-weight: 600; }
+  header p { color: var(--muted); font-size: 13px; margin-top: 2px; }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; align-items: center; }
+  select, input[type="search"] { border: 1px solid var(--border); border-radius: 8px;
+    padding: 7px 10px; font-size: 13px; background: var(--card); color: var(--text); }
+  input[type="search"] { flex: 1; min-width: 160px; }
+  .chip { border: 1px solid var(--border); background: var(--card); border-radius: 999px;
+    padding: 4px 12px; font-size: 12px; cursor: pointer; color: var(--muted); }
+  .chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .stats { font-size: 13px; color: var(--muted); margin: 8px 0 16px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px 18px; margin-bottom: 12px; }
+  .card .stars { color: var(--star); font-size: 12px; letter-spacing: 1px; }
+  .card h3 { font-size: 15px; font-weight: 600; margin: 4px 0 6px; }
+  .card .en-title { font-size: 12px; color: var(--muted); font-style: italic; }
+  .meta { font-size: 12px; color: var(--muted); margin: 6px 0; }
+  .meta a { color: var(--accent); text-decoration: none; }
+  .oneline { font-size: 13.5px; margin: 8px 0; }
+  .hl { font-size: 13px; color: var(--tag); margin: 4px 0; }
+  .detail { font-size: 13px; color: #374151; margin-top: 8px; display: none;
+    border-top: 1px dashed var(--border); padding-top: 8px; }
+  .card.open .detail { display: block; }
+  .more { font-size: 12px; color: var(--accent); cursor: pointer; user-select: none;
+    display: inline-block; margin-top: 6px; }
+  .tag { display: inline-block; background: var(--tag-bg); color: var(--tag);
+    border-radius: 4px; padding: 1px 8px; font-size: 11.5px; margin-right: 6px; }
+  .upvote { font-size: 12px; color: var(--star); }
+  mark { background: #ffe9a8; padding: 0 1px; border-radius: 2px; }
+  details.kimi { margin-top: 8px; border-top: 1px dashed var(--border); padding-top: 8px; font-size: 13px; }
+  details.kimi summary { cursor: pointer; color: var(--accent); }
+  .empty { text-align: center; color: var(--muted); padding: 60px 0; }
+  .sec-title { font-size: 15px; font-weight: 600; margin: 22px 0 10px; padding-left: 10px;
+    border-left: 3px solid var(--accent); }
+  footer { text-align: center; color: var(--muted); font-size: 12px; margin-top: 30px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>前研日报</h1>
+    <p>Frontier Research Daily · 图像编辑 / Agent / 视频模型 / 系统</p>
+  </header>
+
+  <div class="toolbar">
+    <select id="dateSel"></select>
+    <select id="ratingSel">
+      <option value="0">全部评级</option>
+      <option value="5">5 星</option>
+      <option value="4">4 星及以上</option>
+      <option value="3">3 星及以上</option>
+    </select>
+    <input type="search" id="search" placeholder="搜索标题 / 摘要 / 标签…">
+  </div>
+  <div class="toolbar" id="tagChips"></div>
+  <div class="stats" id="stats"></div>
+  <div id="list"></div>
+  <footer>由 GitHub Actions 每日自动抓取生成 · Powered by arXiv / HuggingFace / DeepSeek</footer>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+let papers = [], tagFilter = "";
+
+function esc(s) {
+  return (s || "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+function mark(s, q) {
+  s = esc(s);
+  if (!q) return s;
+  try { return s.replace(new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi"), m => "<mark>" + m + "</mark>"); }
+  catch (e) { return s; }
+}
+function stars(r) { return "★".repeat(r) + "☆".repeat(5 - r); }
+
+function card(p, q) {
+  const authors = (p.authors || []).slice(0, 3).join(", ") + ((p.authors || []).length > 3 ? ` 等 ${p.authors.length} 人` : "");
+  const tags = (p.tags || []).map(t => `<span class="tag">${esc(t)}</span>`).join("");
+  const up = p.hf_upvotes ? ` <span class="upvote">▲ ${p.hf_upvotes}</span>` : "";
+  const hl = (p.highlights || []).length ? `<div class="hl">亮点：${mark(p.highlights.join("；"), q)}</div>` : "";
+  const detail = p.summary_zh ? `<div class="detail">${mark(p.summary_zh, q)}<div style="margin-top:6px;color:var(--muted);font-size:12px">${esc(p.abstract ? p.abstract.slice(0, 300) + "…" : "")}</div></div><span class="more" onclick="this.parentNode.classList.toggle('open')">展开/收起详细摘要</span>` : "";
+  const pcUrl = `https://papers.cool/arxiv/${p.id}`;
+  const kimi = (p.kimi_qa && p.kimi_qa.length)
+    ? `<details class="kimi"><summary>📘 Kimi 深度解读（${p.kimi_qa.length} 组 Q&A）</summary>${p.kimi_qa.map((qa, i) => `<p style="margin:8px 0 4px;"><b>Q${i+1}. ${esc(qa[0])}</b></p><div style="font-size:13px;">${mark(qa[1] || "", q)}</div>`).join("")}</details>`
+    : `<div style="margin-top:6px;font-size:12px;"><a href="${pcUrl}" target="_blank" style="color:var(--accent)">Kimi 解读 →</a></div>`;
+  return `<div class="card">
+    <div class="stars">${stars(p.rating || 0)}${up}</div>
+    <h3>${mark(p.title_zh || p.title, q)}</h3>
+    <div class="en-title">${mark(p.title, q)}</div>
+    <div class="meta">${authors ? esc(authors) + " · " : ""}<a href="${p.url}" target="_blank">原文</a> · <a href="${p.pdf_url || p.url + ".pdf"}" target="_blank">PDF</a></div>
+    <div>${tags}</div>
+    <div class="oneline">${mark(p.oneline_zh || "", q)}</div>
+    ${hl}${detail}${kimi}
+  </div>`;
+}
+
+function render() {
+  const q = $("search").value.trim();
+  const minR = parseInt($("ratingSel").value, 10);
+  let list = papers.filter(p =>
+    (!minR || (p.rating || 0) >= minR) &&
+    (!tagFilter || (p.tags || []).concat(p.matched_directions || []).includes(tagFilter)) &&
+    (!q || (p.title + (p.title_zh || "") + (p.oneline_zh || "") + (p.tags || []).join("") + p.abstract).toLowerCase().includes(q.toLowerCase()))
+  );
+  const must = list.filter(p => (p.rating || 0) >= 4);
+  const rest = list.filter(p => (p.rating || 0) < 4);
+  let html = "";
+  if (must.length) html += `<div class="sec-title">今日必读（${must.length}）</div>` + must.map(p => card(p, q)).join("");
+  if (rest.length) html += `<div class="sec-title">其他精选（${rest.length}）</div>` + rest.map(p => card(p, q)).join("");
+  $("list").innerHTML = html || `<div class="empty">没有匹配的论文</div>`;
+  $("stats").textContent = `共 ${papers.length} 篇精选 · 当前显示 ${list.length} 篇`;
+}
+
+async function loadDate(date) {
+  $("list").innerHTML = `<div class="empty">加载中…</div>`;
+  const res = await fetch(`data/${date}.jsonl`);
+  if (!res.ok) { $("list").innerHTML = `<div class="empty">该日期数据加载失败</div>`; return; }
+  const text = await res.text();
+  papers = text.trim().split("\n").filter(Boolean).map(l => { try { return JSON.parse(l); } catch (e) { return null; } }).filter(Boolean);
+  const allTags = [...new Set(papers.flatMap(p => p.tags || []))];
+  $("tagChips").innerHTML = allTags.slice(0, 14).map(t =>
+    `<span class="chip${t === tagFilter ? " on" : ""}" onclick="tagFilter='${t === tagFilter ? "" : t}';loadChips();render()">${esc(t)}</span>`).join("");
+  render();
+}
+
+function loadChips() {
+  document.querySelectorAll("#tagChips .chip").forEach(c =>
+    c.classList.toggle("on", c.textContent === tagFilter));
+}
+
+async function init() {
+  const res = await fetch("assets/file-list.txt");
+  const files = (await res.text()).trim().split("\n").filter(Boolean);
+  const dates = files.map(f => f.replace(".jsonl", "")).sort().reverse();
+  $("dateSel").innerHTML = dates.map(d => `<option value="${d}">${d}</option>`).join("");
+  if (!dates.length) { $("list").innerHTML = `<div class="empty">暂无数据</div>`; return; }
+  $("dateSel").onchange = () => loadDate($("dateSel").value);
+  $("search").oninput = render;
+  $("ratingSel").onchange = render;
+  loadDate(dates[0]);
+}
+init();
+</script>
+</body>
+</html>

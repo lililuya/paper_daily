@@ -1,0 +1,46 @@
+name: qianyan-daily
+
+on:
+  schedule:
+    # UTC 15:00 = 北京时间 23:00，覆盖 arXiv 当日更新
+    - cron: "0 15 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: qianyan-daily
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run pipeline
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
+          MODEL_NAME: ${{ vars.MODEL_NAME }}
+        run: |
+          python run_pipeline.py
+
+      - name: Commit daily data
+        run: |
+          git config user.name "qianyan-bot"
+          git config user.email "actions@github.com"
+          git add -f data/ assets/file-list.txt || true
+          if git diff --staged --quiet; then
+            echo "无新数据，跳过提交"
+          else
+            git commit -m "daily: $(date -u +%F) frontier research digest"
+            git push
+          fi
