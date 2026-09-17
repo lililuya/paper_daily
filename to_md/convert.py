@@ -9,7 +9,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from daily_arxiv.config import DATA_DIR  # noqa: E402
 
 RATING_STAR = {5: "⭐⭐⭐⭐⭐", 4: "⭐⭐⭐⭐", 3: "⭐⭐⭐", 2: "⭐⭐", 1: "⭐"}
-DIRECTION_ORDER = ["视频模型", "图像编辑", "Agent", "大语言模型", "多模态", "系统与基础设施", "HF精选"]
+DIRECTION_ORDER = ["视频模型", "图像编辑", "Agent", "大语言模型", "多模态", "系统与基础设施", "数据工程", "HF精选"]
 
 
 def _paper_md(p: dict, detailed: bool) -> str:

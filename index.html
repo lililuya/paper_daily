@@ -29,7 +29,12 @@
   .stats { font-size: 13px; color: var(--muted); margin: 8px 0 16px; }
   .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px;
     padding: 16px 18px; margin-bottom: 12px; }
-  .card .stars { color: var(--star); font-size: 12px; letter-spacing: 1px; }
+  .card .stars { color: var(--star); font-size: 12px; letter-spacing: 1px;
+    display: flex; justify-content: space-between; align-items: center; }
+  .bm { cursor: pointer; font-size: 12px; color: var(--muted); letter-spacing: 0;
+    border: 1px solid var(--border); border-radius: 999px; padding: 1px 10px; user-select: none; }
+  .bm:hover { border-color: var(--star); color: var(--star); }
+  .bm.on { color: #fff; background: var(--star); border-color: var(--star); font-weight: 600; }
   .card h3 { font-size: 15px; font-weight: 600; margin: 4px 0 6px; }
   .card .en-title { font-size: 12px; color: var(--muted); font-style: italic; }
   .meta { font-size: 12px; color: var(--muted); margin: 6px 0; }
@@ -81,6 +86,7 @@
       <option value="3">3 星及以上</option>
     </select>
     <input type="search" id="search" placeholder="搜索标题 / 摘要 / 标签…">
+    <span class="chip" id="starChip" onclick="starOnly=!starOnly;render()" title="只显示我标记为重点阅读的论文">★ 只看重点</span>
   </div>
   <div class="toolbar" id="tagChips"></div>
   <div class="stats" id="stats"></div>
@@ -90,7 +96,17 @@
 
 <script>
 const $ = id => document.getElementById(id);
-let papers = [], tagFilter = "";
+let papers = [], tagFilter = "", starOnly = false;
+// 重点阅读标记：localStorage 持久化（id -> 标记日期），跨设备不同步
+let starred = {};
+try { starred = JSON.parse(localStorage.getItem("qy_starred") || "{}") || {}; } catch (e) { starred = {}; }
+
+function toggleStar(id) {
+  if (starred[id]) delete starred[id];
+  else starred[id] = ($("dateSel") && $("dateSel").value) || "";
+  try { localStorage.setItem("qy_starred", JSON.stringify(starred)); } catch (e) {}
+  render();
+}
 
 function esc(s) {
   return (s || "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -144,8 +160,10 @@ function card(p, q) {
     ? `<details class="kimi"><summary>📘 Kimi 深度解读（${p.kimi_qa.length} 组 Q&A）</summary>${p.kimi_qa.map((qa, i) => `<p style="margin:8px 0 4px;"><b>Q${i+1}. ${esc(qa[0])}</b></p><div class="md" style="font-size:13px;">${md(qa[1] || "")}</div>`).join("")}</details>`
     : `<div style="margin-top:6px;font-size:12px;"><a href="${pcUrl}" target="_blank" style="color:var(--accent)">Kimi 解读 →</a></div>`;
   const oneline = p.oneline_zh ? `<div class="oneline">${mark(p.oneline_zh, q)}</div>` : "";
-  return `<div class="card">
-    <div class="stars">${stars(p.rating || 0)}${up}</div>
+  const on = !!starred[p.id];
+  const bm = `<span class="bm${on ? " on" : ""}" onclick="event.stopPropagation();toggleStar('${p.id}')" title="${on ? "取消重点标记" : "标记为重点阅读"}">${on ? "★ 重点" : "☆ 标重点"}</span>`;
+  return `<div class="card${on ? "" : ""}">
+    <div class="stars"><span>${stars(p.rating || 0)}${up}</span>${bm}</div>
     <h3>${mark(p.title_zh || p.title, q)}</h3>
     <div class="en-title">${mark(p.title, q)}</div>
     <div class="meta">${authors ? esc(authors) + " · " : ""}<a href="${p.url}" target="_blank">原文</a> · <a href="${p.pdf_url || p.url + ".pdf"}" target="_blank">PDF</a></div>
@@ -159,9 +177,14 @@ function render() {
   const minR = parseInt($("ratingSel").value, 10);
   let list = papers.filter(p =>
     (!minR || (p.rating || 0) >= minR) &&
+    (!starOnly || starred[p.id]) &&
     (!tagFilter || (p.tags || []).concat(p.matched_directions || []).includes(tagFilter)) &&
     (!q || (p.title + (p.title_zh || "") + (p.oneline_zh || "") + (p.tags || []).join("") + p.abstract).toLowerCase().includes(q.toLowerCase()))
   );
+  const starCount = papers.filter(p => starred[p.id]).length;
+  const chip = $("starChip");
+  chip.classList.toggle("on", starOnly);
+  chip.textContent = `★ 只看重点${starCount ? `（${starCount}）` : ""}`;
   const must = list.filter(p => (p.rating || 0) >= 4);
   const rest = list.filter(p => (p.rating || 0) < 4);
   let html = "";

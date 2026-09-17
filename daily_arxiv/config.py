@@ -72,6 +72,16 @@ INTERESTS = {
             "long context inference", "network", "RDMA",
         ],
     },
+    "数据工程": {
+        "weight": 2,
+        "keywords": [
+            "data curation", "data-centric", "data selection", "data quality",
+            "data engineering", "data pipeline", "data cleaning", "data filtering",
+            "dataset construction", "dataset creation", "synthetic data",
+            "pretraining data", "data mixture", "data attribution",
+            "benchmark construction", "data annotation",
+        ],
+    },
 }
 
 # 三大核心主题（用于日报配额选取，保证每个主题都有足够曝光）
@@ -83,8 +93,8 @@ SCORE_THRESHOLD = 5
 # LLM 深度摘要的推荐指数门槛（rating >= 4 生成详细摘要，其余只生成一句话）
 DEEP_SUMMARY_RATING = 4
 
-# 每日 LLM 增强的论文数上限（按规则分从高到低取）
-MAX_LLM_PAPERS = 20
+# 每日 LLM 增强的论文数上限（按规则分从高到低取），可用环境变量覆盖
+MAX_LLM_PAPERS = int(os.environ.get("MAX_LLM_PAPERS") or 20)
 
 # papers.cool Kimi 摘要抓取配置（每篇约 1-3 分钟，建议并行）
 PAPERS_COOL_FETCH = os.environ.get("PAPERS_COOL_FETCH", "1") not in ("0", "false", "False")
