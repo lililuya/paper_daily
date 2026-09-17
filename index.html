@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>前研日报 · Frontier Research Daily</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
 <style>
   :root {
     --bg: #f6f7f9; --card: #ffffff; --text: #1c1e21; --muted: #6b7280;
@@ -105,14 +108,14 @@ function card(p, q) {
   const kimi = (p.kimi_qa && p.kimi_qa.length)
     ? `<details class="kimi"><summary>📘 Kimi 深度解读（${p.kimi_qa.length} 组 Q&A）</summary>${p.kimi_qa.map((qa, i) => `<p style="margin:8px 0 4px;"><b>Q${i+1}. ${esc(qa[0])}</b></p><div style="font-size:13px;">${mark(qa[1] || "", q)}</div>`).join("")}</details>`
     : `<div style="margin-top:6px;font-size:12px;"><a href="${pcUrl}" target="_blank" style="color:var(--accent)">Kimi 解读 →</a></div>`;
+  const oneline = p.oneline_zh ? `<div class="oneline">${mark(p.oneline_zh, q)}</div>` : "";
   return `<div class="card">
     <div class="stars">${stars(p.rating || 0)}${up}</div>
     <h3>${mark(p.title_zh || p.title, q)}</h3>
     <div class="en-title">${mark(p.title, q)}</div>
     <div class="meta">${authors ? esc(authors) + " · " : ""}<a href="${p.url}" target="_blank">原文</a> · <a href="${p.pdf_url || p.url + ".pdf"}" target="_blank">PDF</a></div>
     <div>${tags}</div>
-    <div class="oneline">${mark(p.oneline_zh || "", q)}</div>
-    ${abstract}${hl}${detail}${kimi}
+    ${oneline}${abstract}${hl}${detail}${kimi}
   </div>`;
 }
 
@@ -130,7 +133,24 @@ function render() {
   if (must.length) html += `<div class="sec-title">今日必读（${must.length}）</div>` + must.map(p => card(p, q)).join("");
   if (rest.length) html += `<div class="sec-title">其他精选（${rest.length}）</div>` + rest.map(p => card(p, q)).join("");
   $("list").innerHTML = html || `<div class="empty">没有匹配的论文</div>`;
+  renderMath();
   $("stats").textContent = `共 ${papers.length} 篇精选 · 当前显示 ${list.length} 篇`;
+}
+
+function renderMath() {
+  if (window.renderMathInElement) {
+    try {
+      renderMathInElement($("list"), {
+        delimiters: [
+          { left: "$$", right: "$$", display: true },
+          { left: "$", right: "$", display: false },
+          { left: "\\(", right: "\\)", display: false },
+          { left: "\\[", right: "\\]", display: true },
+        ],
+        throwOnError: false,
+      });
+    } catch (e) { /* KaTeX 加载失败时静默降级为纯文本 */ }
+  }
 }
 
 async function loadDate(date) {
@@ -161,6 +181,8 @@ async function init() {
   $("ratingSel").onchange = render;
   loadDate(dates[0]);
 }
+// KaTeX 脚本为 defer 加载，可能晚于首次渲染，加载完成后补渲染一次公式
+window.addEventListener("load", () => { if (papers.length) renderMath(); });
 init();
 </script>
 </body>

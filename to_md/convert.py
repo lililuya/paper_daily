@@ -24,9 +24,12 @@ def _paper_md(p: dict, detailed: bool) -> str:
         f"**方向**：{tags or '未分类'}{upvote} | **作者**：{author_str} | "
         f"[原文]({p['url']}) | [PDF]({p.get('pdf_url') or p['url'] + '.pdf'})",
         "",
-        f"> {p.get('oneline_zh', '')}",
-        "",
     ]
+    # LLM 生成的一句话中文摘要（仅在非重复时展示）
+    oneline = (p.get("oneline_zh") or "").strip()
+    if oneline:
+        lines.append(f"**一句话**：{oneline}")
+        lines.append("")
     if detailed and p.get("highlights"):
         lines.append("**亮点**：" + "；".join(p["highlights"]))
         lines.append("")
@@ -36,13 +39,11 @@ def _paper_md(p: dict, detailed: bool) -> str:
     lines.append(f"<sub>英文标题：{p['title']}</sub>")
     lines.append("")
 
-    # 英文原版摘要（折叠，便于快速查阅）
-    if p.get("abstract"):
-        lines.append(f"<details><summary>📄 Abstract（点击展开）</summary>")
-        lines.append("")
-        lines.append(p["abstract"].strip())
-        lines.append("")
-        lines.append("</details>")
+    # 英文原版摘要：直接完整引用（$...$ LaTeX 公式 GitHub 可正常渲染）
+    abstract = (p.get("abstract") or "").strip()
+    if abstract:
+        abs_one_line = re.sub(r"\s*\n\s*", " ", abstract)
+        lines.append(f"> {abs_one_line}")
         lines.append("")
 
     # papers.cool 链接

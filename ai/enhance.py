@@ -90,7 +90,8 @@ def enhance(papers: list, dry_run: bool = False) -> list:
         print(f"[ai] dry-run：{len(candidates)} 篇仅用规则打分，不调用 LLM", flush=True)
         for p in candidates:
             p["title_zh"] = p["title"]
-            p["oneline_zh"] = p["abstract"][:120] + "..."
+            # oneline 留空：abstract 已完整展示，不再重复首句
+            p["oneline_zh"] = ""
             p["summary_zh"] = ""
             p["highlights"] = p.get("matched_directions", [])[:2]
             p["tags"] = p.get("matched_directions", [])[:3]
@@ -114,7 +115,7 @@ def enhance(papers: list, dry_run: bool = False) -> list:
             fail += 1
             p["rating"] = _rating_from_score(p)
             p["title_zh"] = p["title"]
-            p["oneline_zh"] = p["abstract"][:120] + "..."
+            p["oneline_zh"] = ""
             p["summary_zh"] = ""
             p["highlights"] = []
             p["tags"] = p.get("matched_directions", [])[:3]
