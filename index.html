@@ -53,6 +53,12 @@
   mark { background: #ffe9a8; padding: 0 1px; border-radius: 2px; }
   details.kimi { margin-top: 8px; border-top: 1px dashed var(--border); padding-top: 8px; font-size: 13px; }
   details.kimi summary { cursor: pointer; color: var(--accent); }
+  .md p { margin: 3px 0; }
+  .md ul, .md ol { margin: 4px 0 4px 20px; padding-left: 4px; }
+  .md li { margin: 2px 0; }
+  .md code { background: #f3f4f6; border-radius: 3px; padding: 0 4px; font-size: 12px; }
+  .md pre { background: #f3f4f6; border-radius: 6px; padding: 8px; overflow-x: auto; margin: 6px 0; font-size: 12px; }
+  .md a { color: var(--accent); }
   .empty { text-align: center; color: var(--muted); padding: 60px 0; }
   .sec-title { font-size: 15px; font-weight: 600; margin: 22px 0 10px; padding-left: 10px;
     border-left: 3px solid var(--accent); }
@@ -97,6 +103,35 @@ function mark(s, q) {
 }
 function stars(r) { return "★".repeat(r) + "☆".repeat(5 - r); }
 
+/* 轻量 Markdown 渲染（Kimi 解读内容用）：加粗/斜体/代码/列表/标题/链接 */
+function md(s) {
+  if (!s) return "";
+  let t = esc(s);
+  t = t.replace(/```([\s\S]*?)```/g, (m, c) => `<pre>${c.replace(/^\n|\n$/g, "")}</pre>`);
+  t = t.replace(/`([^`\n]+)`/g, "<code>$1</code>");
+  t = t.replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");
+  t = t.replace(/(^|[^*\w])\*([^*\n]+)\*/g, "$1<i>$2</i>");
+  t = t.replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  t = t.replace(/^#{1,4}\s+(.+)$/gm, "<b>$1</b>");
+  const out = [];
+  let inUl = false, inOl = false;
+  const closeList = () => { if (inUl) { out.push("</ul>"); inUl = false; } if (inOl) { out.push("</ol>"); inOl = false; } };
+  for (const line of t.split("\n")) {
+    const li = line.match(/^\s*(?:[-*•]|\d+[.)])\s+(.*)/);
+    if (li) {
+      const ordered = /^\s*\d/.test(line);
+      if (ordered && !inOl) { closeList(); out.push("<ol>"); inOl = true; }
+      if (!ordered && !inUl) { closeList(); out.push("<ul>"); inUl = true; }
+      out.push(`<li>${li[1]}</li>`);
+    } else {
+      closeList();
+      out.push(line.trim() === "" ? "" : `<p>${line}</p>`);
+    }
+  }
+  closeList();
+  return out.join("\n").replace(/<\/ul>\s*<ul>/g, "").replace(/<\/ol>\s*<ol>/g, "");
+}
+
 function card(p, q) {
   const authors = (p.authors || []).slice(0, 3).join(", ") + ((p.authors || []).length > 3 ? ` 等 ${p.authors.length} 人` : "");
   const tags = (p.tags || []).map(t => `<span class="tag">${esc(t)}</span>`).join("");
@@ -106,7 +141,7 @@ function card(p, q) {
   const abstract = p.abstract ? `<div class="abstract" onclick="this.classList.toggle('open')" title="点击展开全文">${mark(p.abstract, q)}</div>` : "";
   const pcUrl = `https://papers.cool/arxiv/${p.id}`;
   const kimi = (p.kimi_qa && p.kimi_qa.length)
-    ? `<details class="kimi"><summary>📘 Kimi 深度解读（${p.kimi_qa.length} 组 Q&A）</summary>${p.kimi_qa.map((qa, i) => `<p style="margin:8px 0 4px;"><b>Q${i+1}. ${esc(qa[0])}</b></p><div style="font-size:13px;">${mark(qa[1] || "", q)}</div>`).join("")}</details>`
+    ? `<details class="kimi"><summary>📘 Kimi 深度解读（${p.kimi_qa.length} 组 Q&A）</summary>${p.kimi_qa.map((qa, i) => `<p style="margin:8px 0 4px;"><b>Q${i+1}. ${esc(qa[0])}</b></p><div class="md" style="font-size:13px;">${md(qa[1] || "")}</div>`).join("")}</details>`
     : `<div style="margin-top:6px;font-size:12px;"><a href="${pcUrl}" target="_blank" style="color:var(--accent)">Kimi 解读 →</a></div>`;
   const oneline = p.oneline_zh ? `<div class="oneline">${mark(p.oneline_zh, q)}</div>` : "";
   return `<div class="card">
