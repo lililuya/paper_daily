@@ -1,136 +1,138 @@
-# 前研日报 · Paper Daily
+# Paper Daily
 
 [![standard-readme compliant](https://img.shields.io/badge/readme%20style-standard-brightgreen.svg?style=flat-square)](https://github.com/RichardLitt/standard-readme)
 [![daily pipeline](https://github.com/lililuya/paper_daily/actions/workflows/run.yml/badge.svg)](https://github.com/lililuya/paper_daily/actions/workflows/run.yml)
 [![site](https://img.shields.io/badge/site-GitHub%20Pages-blue?style=flat-square)](https://lililuya.github.io/paper_daily/)
 
-每日自动追踪 AI 前沿研究的流水线：抓取 arXiv 与 HuggingFace Daily Papers，按兴趣方向打分筛选，生成中文日报与交互式网页。
+A fully automated pipeline that tracks frontier AI research every day: it fetches arXiv and HuggingFace Daily Papers, scores and filters them by interest directions, and publishes a Chinese daily digest with an interactive web page.
 
-## 内容列表
+English | [简体中文](README.zh-CN.md)
 
-- [背景](#背景)
-- [使用说明](#使用说明)
-  - [在线阅读](#在线阅读)
-  - [追踪方向](#追踪方向)
-  - [每日流水线](#每日流水线)
-- [安装](#安装)
-  - [云端部署（GitHub Actions）](#云端部署github-actions)
-  - [本地运行](#本地运行)
-- [配置](#配置)
-- [相关仓库](#相关仓库)
-- [维护者](#维护者)
-- [如何贡献](#如何贡献)
-- [使用许可](#使用许可)
+## Table of Contents
 
-## 背景
+- [Background](#background)
+- [Usage](#usage)
+  - [Read Online](#read-online)
+  - [Tracked Directions](#tracked-directions)
+  - [Daily Pipeline](#daily-pipeline)
+- [Install](#install)
+  - [Cloud Deployment (GitHub Actions)](#cloud-deployment-github-actions)
+  - [Local Run](#local-run)
+- [Configuration](#configuration)
+- [Related Repositories](#related-repositories)
+- [Maintainers](#maintainers)
+- [Contributing](#contributing)
+- [License](#license)
 
-前沿论文每天更新数百篇，人工刷 arXiv 列表费时费力且容易漏掉重要工作。本项目参考 [daily-arXiv-ai-enhanced](https://github.com/dw-dengwei/daily-arXiv-ai-enhanced) 的思路，做了一套全自动的「抓取 → 打分 → LLM 增强 → 日报发布」流水线：
+## Background
 
-- **规则打分先行**：关键词加权表 + 命中封顶 + 方向配额，防止单一方向霸榜，再决定哪些论文值得花 LLM token；
-- **多源数据**：arXiv 官方 API + HuggingFace Daily Papers（社区热度保底）+ papers.cool Kimi 深度解读；
-- **零依赖**：纯 Python 标准库（`urllib` + `xml.etree`），无第三方包，克隆即跑；
-- **双输出**：本地 `data/` 下的 Markdown 日报存档 + GitHub Pages 交互式网页（搜索、标签过滤、LaTeX 公式渲染、重点标记）。
+Hundreds of new papers appear on arXiv every day; manually scanning listings is slow and easy to miss important work. Inspired by [daily-arXiv-ai-enhanced](https://github.com/dw-dengwei/daily-arXiv-ai-enhanced), this project builds an end-to-end **fetch → score → LLM enhance → publish** pipeline:
 
-## 使用说明
+- **Rule-based scoring first**: a weighted keyword table with hit capping and per-direction quotas prevents a single direction from dominating, and decides which papers are worth LLM tokens;
+- **Multiple sources**: official arXiv API + HuggingFace Daily Papers (community upvotes as a safety net) + papers.cool Kimi in-depth Q&A;
+- **Zero dependencies**: pure Python standard library (`urllib` + `xml.etree`) — clone and run;
+- **Dual output**: Markdown daily archives under `data/` + an interactive GitHub Pages site (search, tag filtering, LaTeX rendering, must-read marking).
 
-### 在线阅读
+## Usage
 
-站点地址：**<https://lililuya.github.io/paper_daily/>**
+### Read Online
 
-- 顶部切换日期、关键词搜索、按方向标签过滤
-- 每篇论文展示：中文标题、一句话摘要、abstract 原文、推荐指数、papers.cool Kimi Q&A 深度解读
-- 「☆ 标重点」按钮可标记重点阅读（存储在浏览器 localStorage，「只看重点」一键过滤）
+Site: **<https://lililuya.github.io/paper_daily/>**
 
-### 追踪方向
+- Switch dates, search keywords, and filter by direction tags at the top
+- Each paper shows: Chinese title, one-line summary, original abstract, recommendation rating, and the papers.cool Kimi Q&A deep dive
+- The ☆ button marks a paper as must-read (stored in browser localStorage; a "must-read only" toggle filters the list)
 
-| 方向 | 权重 | 关键词示例 |
+### Tracked Directions
+
+| Direction | Weight | Sample keywords |
 |---|---|---|
-| **图像编辑** | 核心 ×5 | image editing、inpainting、subject-driven、image composition |
-| **视频模型** | 核心 ×5 | video generation、video diffusion、text-to-video、video editing |
-| **Agent** | 核心 ×5 | LLM agent、tool use、multi-agent、GUI agent、agentic |
-| **数据工程** | 核心 ×5 | data curation、data selection、synthetic data、data-centric |
-| 大语言模型 | 2 | LLM、reasoning、MoE、RLHF、RAG、LoRA |
-| 多模态 | 2 | multimodal、vision-language、text-to-image、diffusion |
-| 系统/基础设施 | 2 | distributed training、inference optimization、KV cache、quantization |
-| HF 社区精选 | 保底 | 自动包含 HuggingFace Daily Papers 高赞论文 |
+| **Image Editing** | core ×5 | image editing, inpainting, subject-driven, image composition |
+| **Video Models** | core ×5 | video generation, video diffusion, text-to-video, video editing |
+| **Agent** | core ×5 | LLM agent, tool use, multi-agent, GUI agent, agentic |
+| **Data Engineering** | core ×5 | data curation, data selection, synthetic data, data-centric |
+| LLMs | 2 | LLM, reasoning, MoE, RLHF, RAG, LoRA |
+| Multimodal | 2 | multimodal, vision-language, text-to-image, diffusion |
+| Systems & Infra | 2 | distributed training, inference optimization, KV cache, quantization |
+| HF Community Picks | safety net | high-upvote HuggingFace Daily Papers included automatically |
 
-四个核心方向每日轮询配额选取，保证每个方向都有曝光；每日精选上限 25 篇。
+The four core directions are selected round-robin with quotas so every direction gets exposure; the daily digest is capped at 25 papers.
 
-### 每日流水线
+### Daily Pipeline
 
 ```
-fetch_arxiv → fetch_hf → dedup → score → select_balanced → DeepSeek 增强 → Kimi 解读 → Markdown 日报 → 提交回 main → Pages 更新
+fetch_arxiv → fetch_hf → dedup → score → select_balanced → DeepSeek enhance → Kimi Q&A → Markdown digest → commit to main → Pages update
 ```
 
-| 文件 | 作用 |
+| Path | Purpose |
 |---|---|
-| `daily_arxiv/` | 抓取（arXiv / HF / papers.cool Kimi）与规则打分 |
-| `ai/enhance.py` | DeepSeek 中文增强（标题 / 摘要 / 推荐指数） |
-| `to_md/convert.py` | Markdown 日报生成 |
-| `index.html` | 网页前端（单文件，无外部 CDN 依赖） |
-| `data/` | 每日数据与日报存档（自动生成，勿手改） |
-| `.github/workflows/run.yml` | 云端定时任务 |
+| `daily_arxiv/` | Fetchers (arXiv / HF / papers.cool Kimi) and rule-based scoring |
+| `ai/enhance.py` | DeepSeek enhancement (Chinese title / summary / rating) |
+| `to_md/convert.py` | Markdown digest generation |
+| `index.html` | Web frontend (single file, no external CDN) |
+| `data/` | Daily data and digest archive (auto-generated, do not edit) |
+| `.github/workflows/run.yml` | Cloud scheduled workflow |
 
-## 安装
+## Install
 
-克隆本仓库：
+Clone this repository:
 
 ```sh
 git clone https://github.com/lililuya/paper_daily.git
 ```
 
-### 云端部署（GitHub Actions）
+### Cloud Deployment (GitHub Actions)
 
-1. 在仓库 **Settings → Secrets and variables → Actions → Secrets** 添加：
+1. In **Settings → Secrets and variables → Actions → Secrets**, add:
 
-   | Secret | 说明 |
+   | Secret | Description |
    |---|---|
-   | `OPENAI_API_KEY` | DeepSeek API Key（或其他 OpenAI 兼容服务） |
-   | `OPENAI_BASE_URL` | 默认 `https://api.deepseek.com`，可换其他厂商 |
+   | `OPENAI_API_KEY` | DeepSeek API key (or any OpenAI-compatible service) |
+   | `OPENAI_BASE_URL` | Defaults to `https://api.deepseek.com` |
 
-2. （可选）在 **Variables** 添加：
+2. (Optional) Under **Variables**, add:
 
-   | Variable | 默认值 | 说明 |
+   | Variable | Default | Description |
    |---|---|---|
-   | `MODEL_NAME` | `deepseek-chat` | LLM 模型名 |
-   | `MAX_LLM_PAPERS` | `25` | 每日精选篇数上限 |
+   | `MODEL_NAME` | `deepseek-chat` | LLM model name |
+   | `MAX_LLM_PAPERS` | `25` | Daily paper cap |
 
-3. 启用 Pages：**Settings → Pages → Build and deployment → Source: Deploy from a branch**，Branch 选 **main** / `(root)`。
+3. Enable Pages: **Settings → Pages → Build and deployment → Source: Deploy from a branch**, choose **main** / `(root)`.
 
-4. 流水线每天北京时间 23:00 自动运行，也可在 **Actions → Daily Pipeline → Run workflow** 手动触发。
+4. The pipeline runs daily at 23:00 Beijing time (15:00 UTC), or trigger it manually via **Actions → Daily Pipeline → Run workflow**.
 
-### 本地运行
+### Local Run
 
-要求 Python 3.10+，无第三方依赖：
+Requires Python 3.10+, no third-party dependencies:
 
 ```sh
-python run_pipeline.py --dry-run        # 试跑：真实抓取 + 打分，不调 LLM、不花钱
-python run_pipeline.py                  # 完整版：需设置 OPENAI_API_KEY 环境变量
-python run_pipeline.py --date 2026-09-17 --no-dedup   # 重跑指定日期
+python run_pipeline.py --dry-run        # dry run: real fetching + scoring, no LLM calls, no cost
+python run_pipeline.py                  # full run: requires the OPENAI_API_KEY env var
+python run_pipeline.py --date 2026-09-17 --no-dedup   # re-run a specific date
 ```
 
-未配置 API Key 时自动降级为 dry-run（无中文摘要，仅规则打分）。
+Without an API key it degrades to dry-run mode (rule-based scoring only, no Chinese summaries).
 
-## 配置
+## Configuration
 
-改关键词、调整方向权重、修改每日篇数、Kimi/DeepSeek 参数等，完整说明见 **[CONFIG.md](CONFIG.md)**。
+Changing keywords, direction weights, the daily paper cap, or Kimi/DeepSeek parameters is documented in **[CONFIG.md](CONFIG.md)** (in Chinese).
 
-配置修改需提交到 `main` 分支后，从下一次运行生效（当天已生成的数据不变）。
+Configuration changes take effect from the next run after being committed to `main`.
 
-## 相关仓库
+## Related Repositories
 
-- [daily-arXiv-ai-enhanced](https://github.com/dw-dengwei/daily-arXiv-ai-enhanced) — 本项目的灵感来源
-- [papers.cool](https://papers.cool/) — Kimi 论文深度解读数据源
-- [standard-readme](https://github.com/RichardLitt/standard-readme) — 本 README 遵循的规范
+- [daily-arXiv-ai-enhanced](https://github.com/dw-dengwei/daily-arXiv-ai-enhanced) — the inspiration for this project
+- [papers.cool](https://papers.cool/) — source of the Kimi paper deep dives
+- [standard-readme](https://github.com/RichardLitt/standard-readme) — the README style this project follows
 
-## 维护者
+## Maintainers
 
 [@lililuya](https://github.com/lililuya)
 
-## 如何贡献
+## Contributing
 
-欢迎提 [Issue](https://github.com/lililuya/paper_daily/issues/new) 或 Pull Request——比如推荐新的追踪关键词、方向或数据源。
+Feel free to open an [issue](https://github.com/lililuya/paper_daily/issues/new) or submit a pull request — e.g. suggesting new keywords, directions, or data sources.
 
-## 使用许可
+## License
 
 [MIT](LICENSE) © 2026 lililuya
