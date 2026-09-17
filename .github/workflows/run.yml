@@ -25,6 +25,27 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Diagnose network access to arXiv (temporary)
+        run: |
+          API='https://export.arxiv.org/api/query?search_query=cat:cs.CV&max_results=1'
+          API2='https://arxiv.org/api/query?search_query=cat:cs.CV&max_results=1'
+          LIST='https://arxiv.org/list/cs.CV/new'
+          test_url() {
+            code=$(curl -s -o /dev/null -w "%{http_code}" -m 30 -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36" "$1")
+            echo "  $code  $1"
+          }
+          echo "== direct =="
+          test_url "$API"; test_url "$API2"; test_url "$LIST"
+          echo "== via allorigins =="
+          test_url "https://api.allorigins.win/raw?url=$(python3 -c "import urllib.parse;print(urllib.parse.quote('$API',safe=''))")"
+          echo "== via codetabs =="
+          test_url "https://api.codetabs.com/v1/proxy?quest=$(python3 -c "import urllib.parse;print(urllib.parse.quote('$API',safe=''))")"
+          echo "== via jina reader (raw header) =="
+          code=$(curl -s -o /tmp/jina.out -w "%{http_code}" -m 60 -H "x-return-format: html" "https://r.jina.ai/$API")
+          echo "  $code  r.jina.ai (body head: $(head -c 120 /tmp/jina.out | tr '\n' ' '))"
+          echo "== runner IP =="
+          curl -s -m 15 https://api.github.com/meta | head -c 0; curl -s -m 15 ifconfig.me || true; echo
+
       - name: Run pipeline
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
