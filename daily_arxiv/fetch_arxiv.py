@@ -12,23 +12,37 @@ from datetime import datetime, timedelta, timezone
 from .config import ARXIV_LOOKBACK_DAYS, ARXIV_PAGE_SIZE, ARXIV_RATE_LIMIT_SECONDS, CATEGORIES
 
 ARXIV_API = "https://export.arxiv.org/api/query"
+ARXIV_API_FALLBACK = "https://arxiv.org/api/query"
 ATOM_NS = "{http://www.w3.org/2005/Atom}"
 ARXIV_NS = "{http://arxiv.org/schemas/atom}"
-HEADERS = {"User-Agent": "qianyan-tracker/0.1 (daily frontier research digest)"}
+# arXiv 对数据中心 IP（如 GitHub Actions）会返回 406 反爬，
+# 用完整浏览器请求头 + 双端点回退来规避
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+    "Accept": "application/atom+xml, text/xml, application/xml, */*",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Connection": "keep-alive",
+}
 
 
 def _get(url: str, retries: int = 3) -> str:
+    last_err = None
     for attempt in range(retries):
+        # 406 通常是出口 IP 被 arXiv 反爬拦截，交替尝试两个端点
+        u = url if attempt % 2 == 0 else url.replace(ARXIV_API, ARXIV_API_FALLBACK)
         try:
-            req = urllib.request.Request(url, headers=HEADERS)
+            req = urllib.request.Request(u, headers=HEADERS)
             with urllib.request.urlopen(req, timeout=60) as r:
                 return r.read().decode("utf-8", "ignore")
         except Exception as e:
+            last_err = e
             if attempt == retries - 1:
                 raise
             wait = 10 * (attempt + 1)
             print(f"  [arxiv] 请求失败({e})，{wait}s 后重试 {attempt + 2}/{retries}", flush=True)
             time.sleep(wait)
+    raise last_err  # pragma: no cover
 
 
 def _parse_entry(entry) -> dict:
