@@ -2,6 +2,8 @@
 
 import json
 import re
+import shutil
+import subprocess
 import sys
 import time
 import urllib.parse
@@ -15,32 +17,52 @@ ARXIV_API = "https://export.arxiv.org/api/query"
 ARXIV_API_FALLBACK = "https://arxiv.org/api/query"
 ATOM_NS = "{http://www.w3.org/2005/Atom}"
 ARXIV_NS = "{http://arxiv.org/schemas/atom}"
-# arXiv 对数据中心 IP（如 GitHub Actions）会返回 406 反爬，
-# 用完整浏览器请求头 + 双端点回退来规避
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
     "Accept": "application/atom+xml, text/xml, application/xml, */*",
     "Accept-Language": "en-US,en;q=0.9",
-    "Connection": "keep-alive",
 }
+CURL_BIN = shutil.which("curl")
+
+
+def _get_urllib(url: str) -> str:
+    req = urllib.request.Request(url, headers=HEADERS)
+    with urllib.request.urlopen(req, timeout=60) as r:
+        return r.read().decode("utf-8", "ignore")
+
+
+def _get_curl(url: str) -> str:
+    """curl 回退：arXiv 对 Python urllib 的 TLS 指纹返回 406，curl 可通过。"""
+    if not CURL_BIN:
+        raise RuntimeError("curl 不可用")
+    cmd = [
+        CURL_BIN, "-sS", "--fail", "-m", "60", "--compressed",
+        "-A", HEADERS["User-Agent"],
+        "-H", f"Accept: {HEADERS['Accept']}",
+        "-H", f"Accept-Language: {HEADERS['Accept-Language']}",
+        url,
+    ]
+    r = subprocess.run(cmd, capture_output=True, text=True, timeout=90)
+    if r.returncode != 0 or not r.stdout:
+        raise RuntimeError(f"curl exit={r.returncode}: {r.stderr[:120]}")
+    return r.stdout
 
 
 def _get(url: str, retries: int = 3) -> str:
+    """每轮先试 urllib，失败换 curl，再失败换备用端点。"""
     last_err = None
     for attempt in range(retries):
-        # 406 通常是出口 IP 被 arXiv 反爬拦截，交替尝试两个端点
         u = url if attempt % 2 == 0 else url.replace(ARXIV_API, ARXIV_API_FALLBACK)
-        try:
-            req = urllib.request.Request(u, headers=HEADERS)
-            with urllib.request.urlopen(req, timeout=60) as r:
-                return r.read().decode("utf-8", "ignore")
-        except Exception as e:
-            last_err = e
-            if attempt == retries - 1:
-                raise
+        for fetcher, name in ((_get_urllib, "urllib"), (_get_curl, "curl")):
+            try:
+                return fetcher(u)
+            except Exception as e:
+                last_err = e
+                print(f"  [arxiv] {name} 请求失败({e})", flush=True)
+        if attempt < retries - 1:
             wait = 10 * (attempt + 1)
-            print(f"  [arxiv] 请求失败({e})，{wait}s 后重试 {attempt + 2}/{retries}", flush=True)
+            print(f"  [arxiv] {wait}s 后进入第 {attempt + 2}/{retries} 轮重试", flush=True)
             time.sleep(wait)
     raise last_err  # pragma: no cover
 
