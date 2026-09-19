@@ -21,7 +21,14 @@ from datetime import datetime, timedelta, timezone
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from ai.enhance import enhance  # noqa: E402
-from daily_arxiv.config import DATA_DIR, FILE_LIST, MAX_LLM_PAPERS  # noqa: E402
+from daily_arxiv.config import (  # noqa: E402
+    DATA_DIR,
+    FILE_LIST,
+    MAX_LLM_PAPERS,
+    PAPERS_COOL_BACKFILL_BUDGET,
+    PAPERS_COOL_BACKFILL_DAYS,
+    PAPERS_COOL_BUDGET,
+)
 from daily_arxiv.dedup import dedup, save_seen_ids  # noqa: E402
 from daily_arxiv.fetch_arxiv import fetch_arxiv  # noqa: E402
 from daily_arxiv.fetch_hf import fetch_hf  # noqa: E402
@@ -101,7 +108,7 @@ def backfill_kimi(dates: list) -> int:
         missing = [p for p in papers if not p.get("kimi_qa")]
         print(f"[backfill] {date}: {len(papers)} 篇，缺 Kimi {len(missing)} 篇", flush=True)
         if missing:
-            fetch_kimi(missing)
+            fetch_kimi(missing, budget_seconds=PAPERS_COOL_BACKFILL_BUDGET)
         with open(jsonl_path, "w", encoding="utf-8") as f:
             for p in papers:
                 f.write(json.dumps(p, ensure_ascii=False) + "\n")
@@ -153,8 +160,8 @@ def main() -> int:
     # 4. LLM 增强
     enhanced = enhance(candidates, dry_run=args.dry_run)
 
-    # 5. papers.cool Kimi 摘要（可选，可能很慢）
-    fetch_kimi(enhanced)
+    # 5. papers.cool Kimi 摘要（可选，受时间预算约束）
+    fetch_kimi(enhanced, budget_seconds=PAPERS_COOL_BUDGET)
 
     # 6. 存档 JSONL + 生成 Markdown（同日重跑与已有数据合并，不覆盖已发布内容）
     os.makedirs(DATA_DIR, exist_ok=True)
@@ -172,6 +179,18 @@ def main() -> int:
     update_file_list()
 
     print(f"===== 完成：{len(enhanced)} 篇精选 / {len(all_papers)} 篇抓取 =====", flush=True)
+
+    # 8. 自动补抓最近几天缺失的 Kimi（papers.cool 缓存后秒回，逐步补齐覆盖率）
+    if PAPERS_COOL_BACKFILL_DAYS > 0 and not args.no_dedup:
+        base = datetime.strptime(args.date, "%Y-%m-%d")
+        prev = [
+            (base - timedelta(days=i)).strftime("%Y-%m-%d")
+            for i in range(1, PAPERS_COOL_BACKFILL_DAYS + 1)
+        ]
+        prev = [d for d in prev if os.path.exists(os.path.join(DATA_DIR, f"{d}.jsonl"))]
+        if prev:
+            print(f"===== 自动补抓最近 {len(prev)} 天 Kimi =====", flush=True)
+            backfill_kimi(prev)
     return 0
 
 

@@ -101,10 +101,14 @@ ARXIV_LOOKBACK_DAYS = 2    # 回看窗口，一般不用动
 ```python
 PAPERS_COOL_FETCH = True        # 设环境变量 PAPERS_COOL_FETCH=0 可关闭
 PAPERS_COOL_WORKERS = 2         # 并发数，不要超过 2（papers.cool 会限流）
-PAPERS_COOL_TIMEOUT = 240       # 单篇超时（秒），未缓存的论文 Kimi 现生成约需 3-8 分钟
+PAPERS_COOL_TIMEOUT = 240       # 单篇请求超时（秒）
+PAPERS_COOL_RETRIES = 5         # 单篇重试次数（被弹回后等 20s 再试）
+PAPERS_COOL_BUDGET = 900        # 当日 Kimi 抓取总预算（秒），用尽即止
+PAPERS_COOL_BACKFILL_DAYS = 2   # 每日运行后自动补抓最近 N 天缺失的 Kimi
+PAPERS_COOL_BACKFILL_BUDGET = 600  # 补抓总预算（秒）
 ```
 
-**已抓取过的论文在 papers.cool 有缓存，秒回**。某天失败的论文不会丢——第二天看到同类再抓即可。
+**papers.cool 的 Kimi 生成是串行排队的**：未缓存的论文要么立刻被弹回（HTTP 错误，服务器忙），要么占住生成位 2-6 分钟。所以当日抓不完是常态——每日运行会自动回头补最近 2 天缺失的（已缓存的秒回），覆盖率逐步补齐。也可手动补：Actions → Run workflow，参数填 `--backfill-kimi 2026-09-18`（逗号可分隔多天）。
 
 ## 七、DeepSeek / LLM 配置
 

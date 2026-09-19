@@ -96,10 +96,17 @@ DEEP_SUMMARY_RATING = 4
 # 每日 LLM 增强的论文数上限（按规则分从高到低取），可用环境变量覆盖
 MAX_LLM_PAPERS = int(os.environ.get("MAX_LLM_PAPERS") or 25)
 
-# papers.cool Kimi 摘要抓取配置（每篇约 1-3 分钟，建议并行）
+# papers.cool Kimi 摘要抓取配置
+# 注意：papers.cool 的 Kimi 生成是串行排队的——未缓存论文要么立刻返回 HTTP 错误
+# （服务器忙），要么占住生成位 2-6 分钟。因此需要耐心重试 + 时间预算。
 PAPERS_COOL_FETCH = os.environ.get("PAPERS_COOL_FETCH", "1") not in ("0", "false", "False")
 PAPERS_COOL_WORKERS = int(os.environ.get("PAPERS_COOL_WORKERS", "2"))
 PAPERS_COOL_TIMEOUT = int(os.environ.get("PAPERS_COOL_TIMEOUT", "240"))  # 单篇请求超时（秒）
+PAPERS_COOL_RETRIES = int(os.environ.get("PAPERS_COOL_RETRIES", "5"))    # 单篇重试次数（被弹回后等一等再试）
+PAPERS_COOL_RETRY_WAIT = int(os.environ.get("PAPERS_COOL_RETRY_WAIT", "20"))  # 重试间隔（秒）
+PAPERS_COOL_BUDGET = int(os.environ.get("PAPERS_COOL_BUDGET", "900"))    # 当日抓取时间预算（秒）
+PAPERS_COOL_BACKFILL_DAYS = int(os.environ.get("PAPERS_COOL_BACKFILL_DAYS", "2"))  # 每日运行时自动补抓最近 N 天缺失的 Kimi
+PAPERS_COOL_BACKFILL_BUDGET = int(os.environ.get("PAPERS_COOL_BACKFILL_BUDGET", "600"))  # 补抓时间预算（秒）
 
 # LLM 配置（可用环境变量覆盖）
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")

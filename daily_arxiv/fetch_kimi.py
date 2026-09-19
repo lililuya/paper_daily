@@ -8,6 +8,7 @@
 import re
 import sys
 import time
+import urllib.error
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -15,6 +16,8 @@ sys.path.insert(0, __file__.rsplit("\\daily_arxiv\\", 1)[0].rsplit("/daily_arxiv
 
 from daily_arxiv.config import (  # noqa: E402
     PAPERS_COOL_FETCH,
+    PAPERS_COOL_RETRIES,
+    PAPERS_COOL_RETRY_WAIT,
     PAPERS_COOL_TIMEOUT,
     PAPERS_COOL_WORKERS,
 )
@@ -27,21 +30,34 @@ PA_FAQ_Q = re.compile(r'<p\s+class="faq-q">\s*<strong>Q\d+</strong>:\s*([^<]+)</
 PA_FAQ_A = re.compile(r'<div\s+class="faq-a">\s*(.*?)\s*</div>', re.S)
 
 
-def _fetch_one(arxiv_id: str) -> tuple[str, list]:
-    """返回 (arxiv_id, [(q, a_md), ...])。qa 列表为空表示抓取失败。"""
+def _fetch_one(arxiv_id: str, deadline: float | None = None) -> tuple[str, list]:
+    """返回 (arxiv_id, [(q, a_md), ...])。qa 列表为空表示抓取失败。
+
+    papers.cool 的 Kimi 生成串行排队：未缓存论文常先返回 HTTP 错误（忙），
+    稍后重试可排进生成位（生成需 2-6 分钟）。deadline 为整体时间预算截止戳。
+    """
     url = f"https://papers.cool/arxiv/kimi?paper={arxiv_id}"
     headers = {**HEADERS_BASE, "Referer": f"https://papers.cool/arxiv/{arxiv_id}"}
     start = time.time()
     html = ""
-    for attempt in range(2):
+    for attempt in range(PAPERS_COOL_RETRIES):
+        if deadline is not None and time.time() > deadline:
+            print(f"  [kimi] {arxiv_id} 时间预算用尽，放弃 ({time.time()-start:.0f}s)", flush=True)
+            return arxiv_id, []
         try:
             req = urllib.request.Request(url, headers=headers, method="POST")
             with urllib.request.urlopen(req, timeout=PAPERS_COOL_TIMEOUT) as r:
                 html = r.read().decode("utf-8", "ignore")
             break
+        except urllib.error.HTTPError as e:
+            if attempt < PAPERS_COOL_RETRIES - 1:
+                time.sleep(PAPERS_COOL_RETRY_WAIT)
+                continue
+            print(f"  [kimi] {arxiv_id} 失败：HTTP {e.code} ({time.time()-start:.0f}s)", flush=True)
+            return arxiv_id, []
         except Exception as e:  # noqa: BLE001
-            if attempt == 0:
-                time.sleep(3)
+            if attempt < PAPERS_COOL_RETRIES - 1:
+                time.sleep(PAPERS_COOL_RETRY_WAIT)
                 continue
             print(f"  [kimi] {arxiv_id} 失败：{type(e).__name__} ({time.time()-start:.0f}s)", flush=True)
             return arxiv_id, []
@@ -74,19 +90,24 @@ def _html_to_md(s: str) -> str:
     return s
 
 
-def fetch_kimi(papers: list) -> int:
-    """为每篇论文抓取 Kimi Q&A 摘要，结果写入 paper['kimi_qa']。返回成功篇数。"""
+def fetch_kimi(papers: list, budget_seconds: int | None = None) -> int:
+    """为每篇论文抓取 Kimi Q&A 摘要，结果写入 paper['kimi_qa']。返回成功篇数。
+
+    budget_seconds：整体时间预算（秒），超时后不再发起新的重试轮。
+    """
     if not PAPERS_COOL_FETCH:
         print("[kimi] 已通过 PAPERS_COOL_FETCH=0 关闭", flush=True)
         return 0
     if not papers:
         return 0
-    print(f"[kimi] 并发={PAPERS_COOL_WORKERS}，抓取 {len(papers)} 篇 Kimi 摘要...", flush=True)
+    deadline = (time.time() + budget_seconds) if budget_seconds else None
+    budget_note = f"，预算 {budget_seconds}s" if budget_seconds else ""
+    print(f"[kimi] 并发={PAPERS_COOL_WORKERS}，抓取 {len(papers)} 篇{budget_note}...", flush=True)
     for p in papers:
         p.setdefault("kimi_qa", [])
     ok = 0
     with ThreadPoolExecutor(max_workers=PAPERS_COOL_WORKERS) as pool:
-        futures = {pool.submit(_fetch_one, p["id"]): p for p in papers}
+        futures = {pool.submit(_fetch_one, p["id"], deadline): p for p in papers}
         for fut in as_completed(futures):
             paper = futures[fut]
             try:
