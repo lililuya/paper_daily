@@ -5,6 +5,9 @@
     python run_pipeline.py --dry-run      # 不调用 LLM，仅规则打分
     python run_pipeline.py --date 2026-09-17
     python run_pipeline.py --no-dedup     # 忽略历史去重（调试用）
+    python run_pipeline.py --backfill-kimi 2026-09-18[,2026-09-19]
+                                          # 仅为已有日报补抓缺失的 Kimi 解读，
+                                          # 不重新抓取/打分/调 LLM（不花钱）
 
 流水线: arXiv 抓取 + HF Daily Papers -> 去重 -> 规则打分 -> LLM 增强 -> Markdown 日报
 """
@@ -76,12 +79,51 @@ def merge_with_existing(jsonl_path: str, new_papers: list) -> list:
     return merged
 
 
+def backfill_kimi(dates: list) -> int:
+    """为已有日报补抓缺失的 Kimi 解读。
+
+    不重新抓取/打分/调 LLM，只对 kimi_qa 为空的条目请求 papers.cool
+    （此前超时的论文现多已被 papers.cool 缓存，能秒回），然后重写 jsonl 与 md。
+    """
+    for date in dates:
+        jsonl_path = os.path.join(DATA_DIR, f"{date}.jsonl")
+        if not os.path.exists(jsonl_path):
+            print(f"[backfill] {date}: 无数据文件，跳过", flush=True)
+            continue
+        papers = []
+        with open(jsonl_path, "r", encoding="utf-8") as f:
+            for line in f:
+                if line.strip():
+                    try:
+                        papers.append(json.loads(line))
+                    except json.JSONDecodeError:
+                        continue
+        missing = [p for p in papers if not p.get("kimi_qa")]
+        print(f"[backfill] {date}: {len(papers)} 篇，缺 Kimi {len(missing)} 篇", flush=True)
+        if missing:
+            fetch_kimi(missing)
+        with open(jsonl_path, "w", encoding="utf-8") as f:
+            for p in papers:
+                f.write(json.dumps(p, ensure_ascii=False) + "\n")
+        convert(date, papers, stats={"total": len(papers)})
+        ok = sum(1 for p in papers if p.get("kimi_qa"))
+        print(f"[backfill] {date}: 完成，Kimi 覆盖 {ok}/{len(papers)}", flush=True)
+    update_file_list()
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--date", default=beijing_today(), help="日报日期 YYYY-MM-DD")
     parser.add_argument("--dry-run", action="store_true", help="不调用 LLM")
     parser.add_argument("--no-dedup", action="store_true", help="跳过历史去重")
+    parser.add_argument("--backfill-kimi", metavar="DATE[,DATE...]", help="仅为已有日报补抓缺失的 Kimi（不走完整流水线）")
     args = parser.parse_args()
+
+    if args.backfill_kimi:
+        dates = [d.strip() for d in args.backfill_kimi.split(",") if d.strip()]
+        print(f"===== Kimi 补抓 {'/'.join(dates)} =====", flush=True)
+        return backfill_kimi(dates)
 
     print(f"===== 前研追踪流水线 {args.date} {'(dry-run)' if args.dry_run else ''} =====", flush=True)
 
