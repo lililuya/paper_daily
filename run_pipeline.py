@@ -40,6 +40,42 @@ def update_file_list() -> None:
         f.write("\n".join(files))
 
 
+def merge_with_existing(jsonl_path: str, new_papers: list) -> list:
+    """同日重复运行时把新论文并入已有日报，避免覆盖已发布内容。
+
+    规则：
+    - 已有条目一律保留（沿用其 LLM 增强与 Kimi 解读，不重复花钱）；
+    - 新增论文按原顺序补足到 MAX_LLM_PAPERS 上限，超出部分丢弃；
+    - 合并后按分数降序，保证日报顺序稳定。
+    """
+    if not os.path.exists(jsonl_path):
+        return new_papers
+
+    old = []
+    with open(jsonl_path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                old.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
+    if not old:
+        return new_papers
+
+    old_ids = {p.get("id") for p in old}
+    room = max(0, MAX_LLM_PAPERS - len(old))
+    added = [p for p in new_papers if p.get("id") not in old_ids][:room]
+    print(
+        f"[merge] 同日已有 {len(old)} 篇，新增 {len(added)} 篇（上限 {MAX_LLM_PAPERS}）",
+        flush=True,
+    )
+    merged = old + added
+    merged.sort(key=lambda p: (p.get("score", 0), p.get("hf_upvotes", 0)), reverse=True)
+    return merged
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--date", default=beijing_today(), help="日报日期 YYYY-MM-DD")
@@ -78,14 +114,15 @@ def main() -> int:
     # 5. papers.cool Kimi 摘要（可选，可能很慢）
     fetch_kimi(enhanced)
 
-    # 6. 存档 JSONL + 生成 Markdown
+    # 6. 存档 JSONL + 生成 Markdown（同日重跑与已有数据合并，不覆盖已发布内容）
     os.makedirs(DATA_DIR, exist_ok=True)
     jsonl_path = os.path.join(DATA_DIR, f"{args.date}.jsonl")
+    merged = merge_with_existing(jsonl_path, enhanced)
     with open(jsonl_path, "w", encoding="utf-8") as f:
-        for p in enhanced:
+        for p in merged:
             f.write(json.dumps(p, ensure_ascii=False) + "\n")
 
-    convert(args.date, enhanced, stats={"total": len(all_papers)})
+    convert(args.date, merged, stats={"total": len(all_papers)})
 
     # 7. 更新 seen_ids 和文件列表
     if not args.no_dedup:
