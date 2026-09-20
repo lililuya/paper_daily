@@ -12,34 +12,130 @@
     --bg: #f6f7f9; --card: #ffffff; --text: #1c1e21; --muted: #6b7280;
     --border: #e5e7eb; --accent: #185fa5; --accent-light: #e6f1fb;
     --star: #ef9f27; --tag: #0f6e56; --tag-bg: #e1f5ee;
+    --star-bg: #fff7e6;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; scroll-padding-top: 16px; }
   body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
          background: var(--bg); color: var(--text); line-height: 1.6; }
-  .wrap { max-width: 860px; margin: 0 auto; padding: 24px 16px 60px; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 24px 16px 60px; }
+
+  /* ===== 顶栏 ===== */
+  header { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
   header h1 { font-size: 22px; font-weight: 600; }
-  header p { color: var(--muted); font-size: 13px; margin-top: 2px; }
+  header .sub { color: var(--muted); font-size: 13px; }
+
+  /* ===== Tab 切换 ===== */
+  .tabs { display: inline-flex; gap: 4px; background: #eceef1; border-radius: 10px;
+    padding: 3px; margin: 18px 0 0; }
+  .tab { padding: 6px 16px; font-size: 13.5px; border-radius: 8px; cursor: pointer;
+    color: var(--muted); user-select: none; transition: background .15s; }
+  .tab.on { background: var(--card); color: var(--text); font-weight: 600;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, .06); }
+
+  /* ===== 工具栏 ===== */
   .toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; align-items: center; }
   select, input[type="search"] { border: 1px solid var(--border); border-radius: 8px;
     padding: 7px 10px; font-size: 13px; background: var(--card); color: var(--text); }
   input[type="search"] { flex: 1; min-width: 160px; }
   .chip { border: 1px solid var(--border); background: var(--card); border-radius: 999px;
-    padding: 4px 12px; font-size: 12px; cursor: pointer; color: var(--muted); }
+    padding: 4px 12px; font-size: 12px; cursor: pointer; color: var(--muted);
+    transition: all .15s; }
+  .chip:hover { border-color: var(--accent); color: var(--accent); }
   .chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
-  .stats { font-size: 13px; color: var(--muted); margin: 8px 0 16px; }
+
+  /* ===== 概览面板 ===== */
+  .overview { background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 14px 18px; margin: 8px 0 16px; display: grid;
+    grid-template-columns: auto 1fr; gap: 14px 24px; align-items: center; }
+  .overview .totals { display: flex; gap: 18px; }
+  .overview .totals .num { font-size: 22px; font-weight: 600; color: var(--accent); }
+  .overview .totals .lbl { font-size: 12px; color: var(--muted); }
+  .overview .totals .blk { display: flex; flex-direction: column; align-items: center; }
+  .overview .breakdown { display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+    font-size: 12px; color: var(--muted); }
+  .overview .breakdown .grp { display: flex; align-items: center; gap: 4px; margin-right: 4px; color: var(--muted); }
+  .overview .breakdown .grp .chip { padding: 2px 8px; font-size: 11.5px; cursor: pointer; }
+  .overview .breakdown .grp .chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  /* ===== 主体：左目录 + 右卡片 ===== */
+  .main { display: grid; grid-template-columns: 280px 1fr; gap: 20px;
+    align-items: start; }
+  @media (max-width: 980px) { .main { grid-template-columns: 1fr; } }
+
+  aside.toc { position: sticky; top: 16px; max-height: calc(100vh - 32px);
+    overflow-y: auto; background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 12px 8px; font-size: 13px;
+    scrollbar-width: thin; }
+  aside.toc::-webkit-scrollbar { width: 6px; }
+  aside.toc::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+  aside.toc h4 { font-size: 12px; color: var(--muted); font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.5px; padding: 0 8px; margin-bottom: 8px; }
+  aside.toc .toc-group { margin-bottom: 10px; }
+  aside.toc .toc-group-title { font-size: 11px; color: var(--muted);
+    padding: 4px 8px; font-weight: 600; }
+  aside.toc .toc-item { display: flex; align-items: center; gap: 6px;
+    padding: 5px 8px; border-radius: 6px; cursor: pointer; color: var(--text);
+    transition: background .12s; line-height: 1.35; }
+  aside.toc .toc-item:hover { background: var(--accent-light); }
+  aside.toc .toc-item.on { background: var(--accent-light); color: var(--accent); font-weight: 600; }
+  aside.toc .toc-item .st { color: var(--star); font-size: 11px; flex-shrink: 0; letter-spacing: -1px; }
+  aside.toc .toc-item .ti { flex: 1; min-width: 0; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; }
+  aside.toc .toc-item .tg { font-size: 10px; background: var(--tag-bg); color: var(--tag);
+    padding: 0 5px; border-radius: 3px; flex-shrink: 0; max-width: 70px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  aside.toc .toc-item .nm { font-size: 10px; color: var(--muted); flex-shrink: 0; width: 16px;
+    text-align: right; font-variant-numeric: tabular-nums; }
+  aside.toc .toc-empty { padding: 16px 12px; color: var(--muted); font-size: 12px; text-align: center; }
+
+  /* 移动端 TOC 抽屉 */
+  .toc-fab { display: none; position: fixed; bottom: 24px; right: 24px; z-index: 50;
+    background: var(--accent); color: #fff; border: none; border-radius: 999px;
+    padding: 12px 18px; font-size: 14px; box-shadow: 0 4px 16px rgba(0,0,0,.18);
+    cursor: pointer; }
+  .toc-fab:hover { background: #134b87; }
+  .toc-fab .b { background: var(--star); color: #fff; border-radius: 999px;
+    padding: 1px 7px; font-size: 11px; margin-left: 6px; font-weight: 600; }
+  .toc-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.32);
+    z-index: 40; }
+  @media (max-width: 980px) {
+    .toc-fab { display: inline-flex; align-items: center; gap: 4px; }
+    aside.toc { position: fixed; top: 0; left: -300px; width: 280px; max-width: 80vw;
+      height: 100vh; max-height: 100vh; border-radius: 0; z-index: 45;
+      transition: left .25s ease; box-shadow: 4px 0 16px rgba(0,0,0,.12); }
+    aside.toc.open { left: 0; }
+    .toc-backdrop.open { display: block; }
+  }
+
+  /* 回到顶部按钮 */
+  .top-btn { display: none; position: fixed; bottom: 80px; right: 24px; z-index: 30;
+    background: var(--card); color: var(--accent); border: 1px solid var(--border);
+    border-radius: 999px; width: 40px; height: 40px; font-size: 18px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.1); cursor: pointer; }
+  .top-btn:hover { background: var(--accent-light); }
+  .top-btn.show { display: block; }
+
+  /* ===== 卡片 ===== */
+  #list { min-width: 0; }
+  .stats { font-size: 13px; color: var(--muted); margin: 0 0 12px; }
   .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px;
-    padding: 16px 18px; margin-bottom: 12px; }
+    padding: 16px 18px; margin-bottom: 12px; transition: border-color .15s, box-shadow .15s;
+    scroll-margin-top: 16px; }
+  .card:target, .card.highlight { border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-light); }
   .card .stars { color: var(--star); font-size: 12px; letter-spacing: 1px;
     display: flex; justify-content: space-between; align-items: center; }
   .bm { cursor: pointer; font-size: 12px; color: var(--muted); letter-spacing: 0;
-    border: 1px solid var(--border); border-radius: 999px; padding: 1px 10px; user-select: none; }
+    border: 1px solid var(--border); border-radius: 999px; padding: 1px 10px;
+    user-select: none; transition: all .15s; }
   .bm:hover { border-color: var(--star); color: var(--star); }
   .bm.on { color: #fff; background: var(--star); border-color: var(--star); font-weight: 600; }
-  .card h3 { font-size: 15px; font-weight: 600; margin: 4px 0 6px; }
+  .card h3 { font-size: 15px; font-weight: 600; margin: 4px 0 6px; line-height: 1.4; }
   .card .en-title { font-size: 12px; color: var(--muted); font-style: italic; }
   .meta { font-size: 12px; color: var(--muted); margin: 6px 0; }
   .meta a { color: var(--accent); text-decoration: none; }
-  .oneline { font-size: 13.5px; margin: 8px 0; }
+  .oneline { font-size: 13.5px; margin: 8px 0; color: #374151; }
   .hl { font-size: 13px; color: var(--tag); margin: 4px 0; }
   .detail { font-size: 13px; color: #374151; margin-top: 8px; display: none;
     border-top: 1px dashed var(--border); padding-top: 8px; }
@@ -66,24 +162,35 @@
   .md a { color: var(--accent); }
   .empty { text-align: center; color: var(--muted); padding: 60px 0; }
   .sec-title { font-size: 15px; font-weight: 600; margin: 22px 0 10px; padding-left: 10px;
-    border-left: 3px solid var(--accent); }
-  /* 论文 / 博客 切换 */
-  .tabs { display: inline-flex; gap: 4px; background: #eceef1; border-radius: 10px;
-    padding: 3px; margin: 18px 0 0; }
-  .tab { padding: 6px 16px; font-size: 13.5px; border-radius: 8px; cursor: pointer;
-    color: var(--muted); user-select: none; transition: background .15s; }
-  .tab.on { background: var(--card); color: var(--text); font-weight: 600;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, .06); }
+    border-left: 3px solid var(--accent); display: flex; justify-content: space-between; align-items: baseline; }
+  .sec-title .ct { color: var(--muted); font-size: 12px; font-weight: 400; }
   .card .site { font-size: 12px; color: var(--muted); letter-spacing: 0; }
   .card .pub { font-size: 12px; color: var(--muted); letter-spacing: 0; }
   footer { text-align: center; color: var(--muted); font-size: 12px; margin-top: 30px; }
+
+  /* 快捷键提示 */
+  .kbd { display: inline-block; padding: 1px 5px; border-radius: 3px;
+    background: #f3f4f6; border: 1px solid var(--border); font-family: monospace;
+    font-size: 11px; color: var(--muted); }
+
+  @media (max-width: 600px) {
+    header { font-size: 14px; }
+    header h1 { font-size: 19px; }
+    .overview { grid-template-columns: 1fr; }
+    .overview .totals { justify-content: space-around; }
+  }
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <h1>前研日报</h1>
-    <p>Frontier Research Daily · 图像编辑 / Agent / 视频模型 / 系统</p>
+    <div>
+      <h1>前研日报</h1>
+      <p class="sub">Frontier Research Daily · 图像编辑 / Agent / 视频模型 / 数据工程 / 系统</p>
+    </div>
+    <div class="sub">
+      <span class="kbd">/</span> 搜索 · <span class="kbd">J</span>/<span class="kbd">K</span> 上下条 · <span class="kbd">Esc</span> 关闭
+    </div>
   </header>
 
   <div class="tabs">
@@ -99,34 +206,45 @@
       <option value="4">4 星及以上</option>
       <option value="3">3 星及以上</option>
     </select>
-    <input type="search" id="search" placeholder="搜索标题 / 摘要 / 标签…">
-    <span class="chip" id="starChip" onclick="starOnly=!starOnly;render()" title="只显示我标记为重点阅读的论文">★ 只看重点</span>
+    <input type="search" id="search" placeholder="搜索标题 / 摘要 / 标签…  (按 / 快速聚焦)">
+    <span class="chip" id="starChip" onclick="starOnly=!starOnly;render()" title="只显示我标记为重点阅读的">★ 只看重点</span>
   </div>
-  <div class="toolbar" id="tagChips"></div>
-  <div class="stats" id="stats"></div>
-  <div id="list"></div>
+
+  <div class="overview" id="overview"></div>
+
+  <div class="main">
+    <aside class="toc" id="toc">
+      <h4>目录</h4>
+      <div id="tocBody"><div class="toc-empty">暂无内容</div></div>
+    </aside>
+    <div id="list">
+      <div class="empty">加载中…</div>
+    </div>
+  </div>
+
   <footer>由 GitHub Actions 每日自动抓取生成 · Powered by arXiv / HuggingFace / papers.cool / 技术博客 RSS</footer>
 </div>
+
+<button class="toc-fab" id="tocFab" onclick="toggleToc()">≡ 目录<span class="b" id="tocFabCnt">0</span></button>
+<div class="toc-backdrop" id="tocBackdrop" onclick="closeToc()"></div>
+<button class="top-btn" id="topBtn" onclick="window.scrollTo({top:0,behavior:'smooth'})" title="回到顶部">↑</button>
 
 <script>
 const $ = id => document.getElementById(id);
 let papers = [], blogs = [], tagFilter = "", starOnly = false;
-// mode: paper = 论文日报 / blog = 技术博客精选
 let mode = "paper";
 let paperFiles = [], blogFiles = [];
-// 博客默认隐藏与 AI 前沿无关的内容（推荐指数 1-2），选「全部评级」时才显示
-const BLOG_MIN_RATING = 3;
-// 重点阅读标记：localStorage 持久化（id -> 标记日期），跨设备不同步
+const BLOG_MIN_RATING = 3;  // 博客默认隐藏与 AI 前沿无关的内容
 let starred = {};
 try { starred = JSON.parse(localStorage.getItem("qy_starred") || "{}") || {}; } catch (e) { starred = {}; }
 
+// ====== 工具 ======
 function toggleStar(id) {
   if (starred[id]) delete starred[id];
   else starred[id] = ($("dateSel") && $("dateSel").value) || "";
   try { localStorage.setItem("qy_starred", JSON.stringify(starred)); } catch (e) {}
   render();
 }
-
 function esc(s) {
   return (s || "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 }
@@ -137,8 +255,18 @@ function mark(s, q) {
   catch (e) { return s; }
 }
 function stars(r) { return "★".repeat(r) + "☆".repeat(5 - r); }
+function starsShort(r) { return "★".repeat(r) + "·".repeat(5 - r); }
+function short(s, n) {
+  s = (s || "").replace(/\s+/g, " ").trim();
+  return s.length > n ? s.slice(0, n) + "…" : s;
+}
+function tagOf(item) {
+  // 卡片在 TOC 里的归类小标签：优先 tags 第一个；博客显示站点
+  return mode === "blog" ? (item.site || "") : ((item.tags || [])[0] || "");
+}
+function cardId(id) { return "c-" + id.replace(/[^a-zA-Z0-9_.-]/g, "_"); }
 
-/* 轻量 Markdown 渲染（Kimi 解读内容用）：加粗/斜体/代码/列表/标题/链接 */
+/* 轻量 Markdown 渲染（Kimi 解读内容用） */
 function md(s) {
   if (!s) return "";
   let t = esc(s);
@@ -167,7 +295,8 @@ function md(s) {
   return out.join("\n").replace(/<\/ul>\s*<ul>/g, "").replace(/<\/ol>\s*<ol>/g, "");
 }
 
-function card(p, q) {
+// ====== 卡片 ======
+function card(p, q, idx) {
   const authors = (p.authors || []).slice(0, 3).join(", ") + ((p.authors || []).length > 3 ? ` 等 ${p.authors.length} 人` : "");
   const tags = (p.tags || []).map(t => `<span class="tag">${esc(t)}</span>`).join("");
   const up = p.hf_upvotes ? ` <span class="upvote">▲ ${p.hf_upvotes}</span>` : "";
@@ -181,7 +310,7 @@ function card(p, q) {
   const oneline = p.oneline_zh ? `<div class="oneline">${mark(p.oneline_zh, q)}</div>` : "";
   const on = !!starred[p.id];
   const bm = `<span class="bm${on ? " on" : ""}" onclick="event.stopPropagation();toggleStar('${p.id}')" title="${on ? "取消重点标记" : "标记为重点阅读"}">${on ? "★ 重点" : "☆ 标重点"}</span>`;
-  return `<div class="card${on ? "" : ""}">
+  return `<div class="card" id="${cardId(p.id)}" data-idx="${idx}">
     <div class="stars"><span>${stars(p.rating || 0)}${up}</span>${bm}</div>
     <h3>${mark(p.title_zh || p.title, q)}</h3>
     <div class="en-title">${mark(p.title, q)}</div>
@@ -191,7 +320,7 @@ function card(p, q) {
   </div>`;
 }
 
-function blogCard(a, q) {
+function blogCard(a, q, idx) {
   const tags = (a.tags || []).map(t => `<span class="tag">${esc(t)}</span>`).join("");
   const hl = (a.highlights || []).length
     ? `<div class="hl">要点：</div><ul class="md" style="font-size:13px;margin:2px 0 0 18px;">${a.highlights.map(h => `<li>${mark(h, q)}</li>`).join("")}</ul>`
@@ -204,7 +333,7 @@ function blogCard(a, q) {
     ? `<div class="en-title">${mark(a.title, q)}</div>` : "";
   const on = !!starred[a.id];
   const bm = `<span class="bm${on ? " on" : ""}" onclick="event.stopPropagation();toggleStar('${a.id}')" title="${on ? "取消重点标记" : "标记为重点阅读"}">${on ? "★ 重点" : "☆ 标重点"}</span>`;
-  return `<div class="card">
+  return `<div class="card" id="${cardId(a.id)}" data-idx="${idx}">
     <div class="stars"><span>${stars(a.rating || 0)}<span class="site"> ${esc(a.site || "")}</span></span>${bm}</div>
     <h3>${mark(a.title_zh || a.title, q)}</h3>
     ${enTitle}
@@ -214,56 +343,222 @@ function blogCard(a, q) {
   </div>`;
 }
 
-function renderBlogs() {
+// ====== 数据过滤 ======
+function filterPapers() {
+  const q = $("search").value.trim();
+  const minR = parseInt($("ratingSel").value, 10);
+  return papers.filter(p =>
+    (!minR || (p.rating || 0) >= minR) &&
+    (!starOnly || starred[p.id]) &&
+    (!tagFilter || (p.tags || []).concat(p.matched_directions || []).includes(tagFilter)) &&
+    (!q || (p.title + (p.title_zh || "") + (p.oneline_zh || "") + (p.tags || []).join("") + p.abstract).toLowerCase().includes(q.toLowerCase()))
+  );
+}
+function filterBlogs() {
   const q = $("search").value.trim();
   const minR = parseInt($("ratingSel").value, 10);
   const effMin = minR || BLOG_MIN_RATING;
-  const list = blogs.filter(a =>
+  return blogs.filter(a =>
     (a.rating || 0) >= effMin &&
     (!starOnly || starred[a.id]) &&
     (!tagFilter || (a.tags || []).concat(a.matched_directions || []).includes(tagFilter)) &&
     (!q || (a.title + (a.title_zh || "") + (a.oneline_zh || "") + (a.site || "") +
             (a.tags || []).join("") + (a.summary || "")).toLowerCase().includes(q.toLowerCase()))
   );
-  const starCount = blogs.filter(a => starred[a.id]).length;
-  const chip = $("starChip");
-  chip.classList.toggle("on", starOnly);
-  chip.textContent = `★ 只看重点${starCount ? `（${starCount}）` : ""}`;
+}
 
+// ====== 概览面板 ======
+function renderOverview(allItems, filtered, typeLabel) {
+  // 总数与重点
+  const total = allItems.length;
+  const show = filtered.length;
+  const starredCount = allItems.filter(a => starred[a.id]).length;
+  // 按评级分桶
+  const byRating = {};
+  for (const a of allItems) {
+    const r = a.rating || 0;
+    byRating[r] = (byRating[r] || 0) + 1;
+  }
+  // 按方向/标签分桶（取 top 6）
+  const byTag = {};
+  for (const a of allItems) {
+    for (const t of (a.tags || [])) byTag[t] = (byTag[t] || 0) + 1;
+  }
+  const topTags = Object.entries(byTag).sort((a, b) => b[1] - a[1]).slice(0, 6);
+
+  const ratingChips = [5, 4, 3, 2, 1]
+    .filter(r => byRating[r])
+    .map(r => `<span class="chip" title="点击只看 ${r} 星" onclick="quickRating(${r})">★×${r} · ${byRating[r]}</span>`)
+    .join("");
+
+  const tagChips = topTags
+    .map(([t, n]) => `<span class="chip${t === tagFilter ? " on" : ""}" title="点击只看「${esc(t)}」" onclick="quickTag('${esc(t)}')">${esc(t)} · ${n}</span>`)
+    .join("");
+
+  $("overview").innerHTML = `
+    <div class="totals">
+      <div class="blk"><div class="num">${show}/${total}</div><div class="lbl">${typeLabel}</div></div>
+      <div class="blk"><div class="num">${starredCount}</div><div class="lbl">重点</div></div>
+    </div>
+    <div class="breakdown">
+      <span class="grp">评级：${ratingChips || '<span style="color:var(--muted)">—</span>'}</span>
+      <span class="grp">方向：${tagChips || '<span style="color:var(--muted)">—</span>'}</span>
+    </div>`;
+}
+function quickRating(r) {
+  $("ratingSel").value = String(r);
+  render();
+}
+function quickTag(t) {
+  tagFilter = (tagFilter === t) ? "" : t;
+  render();
+}
+
+// ====== 目录 ======
+function renderToc(grouped, sourceItems) {
+  const tocBody = $("tocBody");
+  if (!sourceItems.length) {
+    tocBody.innerHTML = `<div class="toc-empty">没有匹配的${mode === "blog" ? "博客" : "论文"}</div>`;
+    $("tocFabCnt").textContent = "0";
+    return;
+  }
+  // 计算每个卡片在 #list 里的索引（DOM 节点上的 data-idx）
+  // 简化：直接把 sourceItems 顺序映射到 toc 顺序，DOM 也按同序渲染，索引一致
+  let html = "";
+  let globalIdx = 0;
+  grouped.forEach(group => {
+    if (!group.items.length) return;
+    html += `<div class="toc-group"><div class="toc-group-title">${esc(group.title)} <span style="color:var(--muted);font-weight:400">(${group.items.length})</span></div>`;
+    group.items.forEach(item => {
+      const idx = globalIdx++;
+      const tg = tagOf(item);
+      html += `<div class="toc-item" data-idx="${idx}" data-card="${cardId(item.id)}" onclick="jumpTo(${idx})">
+        <span class="st">${starsShort(item.rating || 0)}</span>
+        <span class="ti" title="${esc(item.title_zh || item.title)}">${esc(short(item.title_zh || item.title, 22))}</span>
+        ${tg ? `<span class="tg" title="${esc(tg)}">${esc(short(tg, 6))}</span>` : '<span class="tg"></span>'}
+      </div>`;
+    });
+    html += `</div>`;
+  });
+  tocBody.innerHTML = html || `<div class="toc-empty">没有匹配的${mode === "blog" ? "博客" : "论文"}</div>`;
+  $("tocFabCnt").textContent = String(globalIdx);
+}
+function jumpTo(idx) {
+  const card = document.querySelector(`#list .card[data-idx="${idx}"]`);
+  if (!card) return;
+  // 先关掉移动端抽屉
+  closeToc();
+  // 高亮
+  document.querySelectorAll("#list .card.highlight").forEach(c => c.classList.remove("highlight"));
+  card.classList.add("highlight");
+  card.scrollIntoView({ behavior: "smooth", block: "start" });
+  // TOC 高亮
+  document.querySelectorAll("#toc .toc-item.on").forEach(c => c.classList.remove("on"));
+  const ti = document.querySelector(`#toc .toc-item[data-idx="${idx}"]`);
+  if (ti) ti.classList.add("on");
+  setTimeout(() => card.classList.remove("highlight"), 1600);
+}
+// 滚动联动：哪个卡片进入视口顶 1/3，就高亮对应 TOC 项
+function setupScrollSpy() {
+  if (!window.IntersectionObserver) return;
+  if (window._spy) window._spy.disconnect();
+  window._spy = new IntersectionObserver(entries => {
+    let topMost = null;
+    for (const e of entries) {
+      if (e.isIntersecting && (!topMost || e.boundingClientRect.top < topMost.boundingClientRect.top)) {
+        topMost = e;
+      }
+    }
+    if (topMost) {
+      const idx = topMost.target.getAttribute("data-idx");
+      document.querySelectorAll("#toc .toc-item.on").forEach(c => c.classList.remove("on"));
+      const ti = document.querySelector(`#toc .toc-item[data-idx="${idx}"]`);
+      if (ti) ti.classList.add("on");
+    }
+  }, { rootMargin: "-20% 0px -70% 0px", threshold: 0 });
+  document.querySelectorAll("#list .card").forEach(c => window._spy.observe(c));
+}
+
+// ====== 顶部回顶按钮 ======
+function setupTopBtn() {
+  const btn = $("topBtn");
+  window.addEventListener("scroll", () => {
+    btn.classList.toggle("show", window.scrollY > 400);
+  }, { passive: true });
+}
+
+// ====== 移动端 TOC 抽屉 ======
+function toggleToc() { $("toc").classList.toggle("open"); $("tocBackdrop").classList.toggle("open"); }
+function closeToc() { $("toc").classList.remove("open"); $("tocBackdrop").classList.remove("open"); }
+
+// ====== 键盘快捷键 ======
+function setupKeys() {
+  window.addEventListener("keydown", e => {
+    const t = e.target;
+    // Esc：关闭抽屉 / 清空搜索失焦
+    if (e.key === "Escape") {
+      if ($("toc").classList.contains("open")) { closeToc(); return; }
+      if (t === $("search")) { $("search").blur(); return; }
+    }
+    // / 聚焦搜索（仅当不在输入态）
+    if (e.key === "/" && !(t.tagName === "INPUT" || t.tagName === "TEXTAREA")) {
+      e.preventDefault(); $("search").focus(); $("search").select(); return;
+    }
+    // J / K 上下条（在输入态不响应）
+    if ((e.key === "j" || e.key === "k") && !(t.tagName === "INPUT" || t.tagName === "TEXTAREA")) {
+      e.preventDefault();
+      const cards = [...document.querySelectorAll("#list .card")];
+      if (!cards.length) return;
+      const cur = cards.findIndex(c => c.classList.contains("highlight"));
+      let next = e.key === "j" ? (cur < 0 ? 0 : cur + 1) : (cur <= 0 ? 0 : cur - 1);
+      next = Math.max(0, Math.min(next, cards.length - 1));
+      jumpTo(next);
+    }
+  });
+}
+
+// ====== 渲染 ======
+function renderBlogs() {
+  const q = $("search").value.trim();
+  const list = filterBlogs();
   const must = list.filter(a => (a.rating || 0) >= 4);
   const rest = list.filter(a => (a.rating || 0) < 4);
   let html = "";
-  if (must.length) html += `<div class="sec-title">今日必读（${must.length}）</div>` + must.map(a => blogCard(a, q)).join("");
-  if (rest.length) html += `<div class="sec-title">值得一看（${rest.length}）</div>` + rest.map(a => blogCard(a, q)).join("");
+  const starCount = blogs.filter(a => starred[a.id]).length;
+  const chip = $("starChip"); chip.classList.toggle("on", starOnly);
+  chip.textContent = `★ 只看重点${starCount ? `（${starCount}）` : ""}`;
+  if (must.length) html += `<div class="sec-title">今日必读 <span class="ct">${must.length} 篇</span></div>` + must.map((a, k) => blogCard(a, q, k)).join("");
+  if (rest.length) html += `<div class="sec-title">值得一看 <span class="ct">${rest.length} 篇</span></div>` + rest.map((a, k) => blogCard(a, q, must.length + k)).join("");
   $("list").innerHTML = html || `<div class="empty">没有匹配的博客</div>`;
   renderMath();
-  const hidden = blogs.filter(a => (a.rating || 0) < effMin).length;
-  $("stats").textContent = `共 ${blogs.length} 篇博客 · 当前显示 ${list.length} 篇` +
-    (hidden && !minR ? `（已隐藏 ${hidden} 篇与 AI 前沿无关的内容，选「全部评级」可查看）` : "");
+  renderOverview(blogs, list, "博客");
+  renderToc([
+    { title: "今日必读", items: must },
+    { title: "值得一看", items: rest },
+  ], list);
+  setupScrollSpy();
 }
 
 function render() {
   if (mode === "blog") return renderBlogs();
   const q = $("search").value.trim();
-  const minR = parseInt($("ratingSel").value, 10);
-  let list = papers.filter(p =>
-    (!minR || (p.rating || 0) >= minR) &&
-    (!starOnly || starred[p.id]) &&
-    (!tagFilter || (p.tags || []).concat(p.matched_directions || []).includes(tagFilter)) &&
-    (!q || (p.title + (p.title_zh || "") + (p.oneline_zh || "") + (p.tags || []).join("") + p.abstract).toLowerCase().includes(q.toLowerCase()))
-  );
-  const starCount = papers.filter(p => starred[p.id]).length;
-  const chip = $("starChip");
-  chip.classList.toggle("on", starOnly);
-  chip.textContent = `★ 只看重点${starCount ? `（${starCount}）` : ""}`;
+  const list = filterPapers();
   const must = list.filter(p => (p.rating || 0) >= 4);
   const rest = list.filter(p => (p.rating || 0) < 4);
   let html = "";
-  if (must.length) html += `<div class="sec-title">今日必读（${must.length}）</div>` + must.map(p => card(p, q)).join("");
-  if (rest.length) html += `<div class="sec-title">其他精选（${rest.length}）</div>` + rest.map(p => card(p, q)).join("");
+  const starCount = papers.filter(p => starred[p.id]).length;
+  const chip = $("starChip"); chip.classList.toggle("on", starOnly);
+  chip.textContent = `★ 只看重点${starCount ? `（${starCount}）` : ""}`;
+  if (must.length) html += `<div class="sec-title">今日必读 <span class="ct">${must.length} 篇</span></div>` + must.map((p, k) => card(p, q, k)).join("");
+  if (rest.length) html += `<div class="sec-title">其他精选 <span class="ct">${rest.length} 篇</span></div>` + rest.map((p, k) => card(p, q, must.length + k)).join("");
   $("list").innerHTML = html || `<div class="empty">没有匹配的论文</div>`;
   renderMath();
-  $("stats").textContent = `共 ${papers.length} 篇精选 · 当前显示 ${list.length} 篇`;
+  renderOverview(papers, list, "论文");
+  renderToc([
+    { title: "今日必读", items: must },
+    { title: "其他精选", items: rest },
+  ], list);
+  setupScrollSpy();
 }
 
 function renderMath() {
@@ -278,7 +573,7 @@ function renderMath() {
         ],
         throwOnError: false,
       });
-    } catch (e) { /* KaTeX 加载失败时静默降级为纯文本 */ }
+    } catch (e) {}
   }
 }
 
@@ -288,36 +583,30 @@ function parseJsonl(text) {
 }
 
 function renderChips(allTags) {
-  $("tagChips").innerHTML = allTags.slice(0, 14).map(t =>
-    `<span class="chip${t === tagFilter ? " on" : ""}" onclick="tagFilter='${t === tagFilter ? "" : t}';loadChips();render()">${esc(t)}</span>`).join("");
+  const chips = allTags.slice(0, 14);
+  $("tagChips") && ($("tagChips").innerHTML = "");
+  // 把标签 chip 直接放进概览面板，去掉单独的工具栏行
+  // （保留函数以兼容旧逻辑，实际渲染由 renderOverview 完成）
 }
 
-function loadChips() {
-  document.querySelectorAll("#tagChips .chip").forEach(c =>
-    c.classList.toggle("on", c.textContent === tagFilter));
-}
-
-async function loadDate(date) {
+function loadDate(date) {
   $("list").innerHTML = `<div class="empty">加载中…</div>`;
   const file = mode === "blog" ? `data/${date}.blogs.jsonl` : `data/${date}.jsonl`;
-  let res;
-  try { res = await fetch(file); } catch (e) { res = { ok: false }; }
-  if (!res.ok) {
+  fetch(file).then(res => {
+    if (!res.ok) throw new Error("404");
+    return res.text();
+  }).then(text => {
+    if (mode === "blog") blogs = parseJsonl(text);
+    else papers = parseJsonl(text);
+    render();
+  }).catch(() => {
     papers = []; blogs = [];
-    renderChips([]);
+    render();
     $("list").innerHTML = `<div class="empty">${mode === "blog" ? "该日期没有博客数据" : "该日期数据加载失败"}</div>`;
-    $("stats").textContent = "";
-    return;
-  }
-  const text = await res.text();
-  if (mode === "blog") {
-    blogs = parseJsonl(text);
-    renderChips([...new Set(blogs.flatMap(a => a.tags || []))]);
-  } else {
-    papers = parseJsonl(text);
-    renderChips([...new Set(papers.flatMap(p => p.tags || []))]);
-  }
-  render();
+    renderOverview([], [], mode === "blog" ? "博客" : "论文");
+    $("tocBody").innerHTML = `<div class="toc-empty">暂无数据</div>`;
+    $("tocFabCnt").textContent = "0";
+  });
 }
 
 function currentDates() {
@@ -341,9 +630,10 @@ function switchMode(m) {
   const dates = renderDateOptions();
   if (!dates.length) {
     papers = []; blogs = [];
-    renderChips([]);
     $("list").innerHTML = `<div class="empty">${m === "blog" ? "暂无博客数据，等待下一次流水线运行" : "暂无数据"}</div>`;
-    $("stats").textContent = "";
+    $("overview").innerHTML = "";
+    $("tocBody").innerHTML = `<div class="toc-empty">暂无数据</div>`;
+    $("tocFabCnt").textContent = "0";
     return;
   }
   loadDate(dates[0]);
@@ -362,13 +652,17 @@ async function init() {
     readList("assets/blog-list.txt"),
   ]);
   const dates = renderDateOptions();
-  if (!dates.length) { $("list").innerHTML = `<div class="empty">暂无数据</div>`; return; }
+  if (!dates.length) {
+    $("list").innerHTML = `<div class="empty">暂无数据</div>`;
+    return;
+  }
   $("dateSel").onchange = () => loadDate($("dateSel").value);
   $("search").oninput = render;
   $("ratingSel").onchange = render;
+  setupTopBtn();
+  setupKeys();
   loadDate(dates[0]);
 }
-// KaTeX 脚本为 defer 加载，可能晚于首次渲染，加载完成后补渲染一次公式
 window.addEventListener("load", () => { if (papers.length) renderMath(); });
 init();
 </script>
