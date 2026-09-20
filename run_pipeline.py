@@ -10,6 +10,7 @@
                                           # 不重新抓取/打分/调 LLM（不花钱）
 
 流水线: arXiv 抓取 + HF Daily Papers -> 去重 -> 规则打分 -> LLM 增强 -> Markdown 日报
+        + 技术博客抓取（RSS）-> 中文导读 -> 博客日报（独立流程，互不影响）
 """
 
 import argparse
@@ -22,6 +23,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from ai.enhance import enhance  # noqa: E402
 from daily_arxiv.config import (  # noqa: E402
+    BLOG_LIST,
+    BLOG_MAX_ITEMS,
     DATA_DIR,
     FILE_LIST,
     MAX_LLM_PAPERS,
@@ -41,25 +44,45 @@ def beijing_today() -> str:
     return datetime.now(timezone(timedelta(hours=8))).strftime("%Y-%m-%d")
 
 
+def _list_data_files(suffix: str) -> list:
+    """列出数据目录中指定类型的文件（不含博客文件，二者分别维护清单）。"""
+    return sorted(f for f in os.listdir(DATA_DIR) if f.endswith(suffix))
+
+
 def update_file_list() -> None:
+    """论文日报清单：data/{date}.jsonl（排除 {date}.blogs.jsonl）。"""
     os.makedirs(os.path.dirname(FILE_LIST), exist_ok=True)
-    files = sorted(
-        f for f in os.listdir(DATA_DIR) if f.endswith(".jsonl")
-    )
+    files = [f for f in _list_data_files(".jsonl") if not f.endswith(".blogs.jsonl")]
     with open(FILE_LIST, "w", encoding="utf-8") as f:
         f.write("\n".join(files))
 
 
-def merge_with_existing(jsonl_path: str, new_papers: list) -> list:
-    """同日重复运行时把新论文并入已有日报，避免覆盖已发布内容。
+def update_blog_list() -> None:
+    """博客清单：只有真正有博客数据的日期才列出，供前端 tab 判断。"""
+    os.makedirs(os.path.dirname(BLOG_LIST), exist_ok=True)
+    files = [f for f in _list_data_files(".blogs.jsonl")]
+    with open(BLOG_LIST, "w", encoding="utf-8") as f:
+        f.write("\n".join(files))
+
+
+def merge_with_existing(
+    jsonl_path: str,
+    new_items: list,
+    max_n: int | None = None,
+    sort_key=None,
+    label: str = "篇",
+) -> list:
+    """同日重复运行时把新条目并入已有日报，避免覆盖已发布内容。
 
     规则：
     - 已有条目一律保留（沿用其 LLM 增强与 Kimi 解读，不重复花钱）；
-    - 新增论文按原顺序补足到 MAX_LLM_PAPERS 上限，超出部分丢弃；
-    - 合并后按分数降序，保证日报顺序稳定。
+    - 新增条目按原顺序补足上限，超出部分丢弃；
+    - 论文与博客共用此函数，条数上限与排序键由调用方传入。
     """
+    max_n = max_n if max_n is not None else MAX_LLM_PAPERS
+    sort_key = sort_key or (lambda p: (p.get("score", 0), p.get("hf_upvotes", 0)))
     if not os.path.exists(jsonl_path):
-        return new_papers
+        return new_items
 
     old = []
     with open(jsonl_path, "r", encoding="utf-8") as f:
@@ -72,17 +95,17 @@ def merge_with_existing(jsonl_path: str, new_papers: list) -> list:
             except json.JSONDecodeError:
                 continue
     if not old:
-        return new_papers
+        return new_items
 
     old_ids = {p.get("id") for p in old}
-    room = max(0, MAX_LLM_PAPERS - len(old))
-    added = [p for p in new_papers if p.get("id") not in old_ids][:room]
+    room = max(0, max_n - len(old))
+    added = [p for p in new_items if p.get("id") not in old_ids][:room]
     print(
-        f"[merge] 同日已有 {len(old)} 篇，新增 {len(added)} 篇（上限 {MAX_LLM_PAPERS}）",
+        f"[merge] 同日已有 {len(old)} {label}，新增 {len(added)} {label}（上限 {max_n}）",
         flush=True,
     )
     merged = old + added
-    merged.sort(key=lambda p: (p.get("score", 0), p.get("hf_upvotes", 0)), reverse=True)
+    merged.sort(key=sort_key, reverse=True)
     return merged
 
 
@@ -117,6 +140,47 @@ def backfill_kimi(dates: list) -> int:
         print(f"[backfill] {date}: 完成，Kimi 覆盖 {ok}/{len(papers)}", flush=True)
     update_file_list()
     return 0
+
+
+def run_blog_pipeline(date: str, dry_run: bool) -> int:
+    """博客抓取 → 规则打分 → LLM 中文导读 → 写 jsonl / md。
+
+    完全独立于论文流程：任何异常只记录不抛出，保证论文日报不受影响
+    （arXiv 周末不更新时，博客反而是当天唯一的内容来源）。
+    """
+    from ai.enhance_blog import enhance_blogs
+    from daily_arxiv.fetch_blog import fetch_blogs, load_seen, mark_seen, save_seen
+    from to_md.convert_blog import convert_blogs
+
+    try:
+        seen = load_seen()
+        articles = fetch_blogs()
+        if not articles:
+            print("[blog] 本次没有新文章，跳过", flush=True)
+            return 0
+
+        enhanced = enhance_blogs(articles, dry_run=dry_run)
+
+        os.makedirs(DATA_DIR, exist_ok=True)
+        jsonl_path = os.path.join(DATA_DIR, f"{date}.blogs.jsonl")
+        merged = merge_with_existing(
+            jsonl_path,
+            enhanced,
+            max_n=BLOG_MAX_ITEMS,
+            sort_key=lambda a: (a.get("rating", 0), a.get("published", "")),
+        )
+        with open(jsonl_path, "w", encoding="utf-8") as f:
+            for a in merged:
+                f.write(json.dumps(a, ensure_ascii=False) + "\n")
+        convert_blogs(date, merged)
+
+        save_seen(mark_seen(articles, seen))
+        update_blog_list()
+        print(f"===== 博客完成：本次 {len(enhanced)} 篇新文章 / 共 {len(merged)} 篇 =====", flush=True)
+        return len(enhanced)
+    except Exception as e:  # noqa: BLE001
+        print(f"[blog] 博客流程异常，已跳过（不影响论文日报）：{type(e).__name__}: {e}", flush=True)
+        return 0
 
 
 def main() -> int:
@@ -196,6 +260,10 @@ def main() -> int:
         if prev:
             print(f"===== 自动补抓最近 {len(prev)} 天 Kimi =====", flush=True)
             backfill_kimi(prev)
+
+    # 9. 技术博客精选（独立流程；arXiv 周末不更新时这是当天唯一内容来源）
+    print(f"===== 博客抓取 {args.date} =====", flush=True)
+    run_blog_pipeline(args.date, args.dry_run)
     return 0
 
 

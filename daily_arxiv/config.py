@@ -113,7 +113,48 @@ OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 OPENAI_BASE_URL = os.environ.get("OPENAI_BASE_URL", "https://api.deepseek.com")
 MODEL_NAME = os.environ.get("MODEL_NAME", "deepseek-chat")
 
+# ============ 技术博客 / 大佬文章追踪 ============
+# RSS / Atom 源。key 是唯一标识（用于去重与前端筛选），不要随意改动。
+BLOG_FEEDS = [
+    # ---- 实验室与机构官方博客 ----
+    {"key": "openai", "name": "OpenAI", "url": "https://openai.com/blog/rss.xml"},
+    {"key": "deepmind", "name": "Google DeepMind", "url": "https://deepmind.google/blog/rss.xml"},
+    {"key": "msr", "name": "Microsoft Research", "url": "https://www.microsoft.com/en-us/research/feed/"},
+    {"key": "apple", "name": "Apple ML", "url": "https://machinelearning.apple.com/rss.xml"},
+    {"key": "hf", "name": "Hugging Face", "url": "https://huggingface.co/blog/feed.xml"},
+    {"key": "nvidia", "name": "NVIDIA Developer", "url": "https://developer.nvidia.com/blog/feed"},
+    {"key": "bair", "name": "BAIR Berkeley", "url": "https://bair.berkeley.edu/blog/feed.xml"},
+    # ---- 个人博客（技术大佬）----
+    {"key": "simonwillison", "name": "Simon Willison", "url": "https://simonwillison.net/atom/everything/"},
+    {"key": "lilianweng", "name": "Lilian Weng", "url": "https://lilianweng.github.io/index.xml"},
+    {"key": "raschka", "name": "Sebastian Raschka", "url": "https://magazine.sebastianraschka.com/feed"},
+    {"key": "eugeneyan", "name": "Eugene Yan", "url": "https://eugeneyan.com/rss/"},
+    {"key": "sander", "name": "Sander Dieleman", "url": "https://sander.ai/feed.xml"},
+    {"key": "interconnects", "name": "Interconnects", "url": "https://www.interconnects.ai/feed"},
+    {"key": "latentspace", "name": "Latent Space", "url": "https://www.latent.space/feed"},
+    {"key": "dettmers", "name": "Tim Dettmers", "url": "https://timdettmers.com/feed/"},
+    {"key": "importai", "name": "Import AI", "url": "https://importai.substack.com/feed"},
+    {"key": "karpathy", "name": "Andrej Karpathy", "url": "https://karpathy.github.io/feed.xml"},
+]
+
+BLOG_ENABLED = os.environ.get("BLOG_ENABLED", "1") not in ("0", "false", "False")
+# 回看窗口：每日运行，7 天足够容错（某天运行失败次日仍能补上），且靠 seen_blogs.json 去重不会重复入选
+BLOG_LOOKBACK_DAYS = int(os.environ.get("BLOG_LOOKBACK_DAYS", "7"))
+BLOG_MAX_ITEMS = int(os.environ.get("BLOG_MAX_ITEMS", "30"))          # 每日进入 LLM 增强的候选上限
+BLOG_MAX_PER_SITE = int(os.environ.get("BLOG_MAX_PER_SITE", "5"))     # 单个源最多入选几篇（防高产博客霸榜）
+BLOG_SUMMARY_CHARS = int(os.environ.get("BLOG_SUMMARY_CHARS", "1500"))  # 原文正文截断长度（给 LLM 的输入）
+BLOG_FETCH_WORKERS = int(os.environ.get("BLOG_FETCH_WORKERS", "6"))   # 并发抓取源的数量
+# 部分源（HuggingFace / DeepMind）的 feed 不带正文，摘要短于此长度时回退抓文章页的 og:description
+BLOG_PAGE_SUMMARY_MIN = int(os.environ.get("BLOG_PAGE_SUMMARY_MIN", "80"))
+BLOG_PAGE_WORKERS = int(os.environ.get("BLOG_PAGE_WORKERS", "5"))     # 回退抓页面的并发数
+BLOG_PAGE_LIMIT = int(os.environ.get("BLOG_PAGE_LIMIT", "25"))        # 单次运行最多回退抓多少篇
+# 每源最多读取的条目数（OpenAI 这类全站 feed 有上千条，只取最新的即可）
+BLOG_MAX_ENTRIES_PER_FEED = int(os.environ.get("BLOG_MAX_ENTRIES_PER_FEED", "30"))
+
 # 目录（相对仓库根）
-DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DATA_DIR = os.path.join(_ROOT, "data")
 SEEN_IDS_FILE = os.path.join(DATA_DIR, "seen_ids.json")
-FILE_LIST = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets", "file-list.txt")
+FILE_LIST = os.path.join(_ROOT, "assets", "file-list.txt")
+SEEN_BLOGS_FILE = os.path.join(DATA_DIR, "seen_blogs.json")
+BLOG_LIST = os.path.join(_ROOT, "assets", "blog-list.txt")

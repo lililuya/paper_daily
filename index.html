@@ -67,6 +67,15 @@
   .empty { text-align: center; color: var(--muted); padding: 60px 0; }
   .sec-title { font-size: 15px; font-weight: 600; margin: 22px 0 10px; padding-left: 10px;
     border-left: 3px solid var(--accent); }
+  /* 论文 / 博客 切换 */
+  .tabs { display: inline-flex; gap: 4px; background: #eceef1; border-radius: 10px;
+    padding: 3px; margin: 18px 0 0; }
+  .tab { padding: 6px 16px; font-size: 13.5px; border-radius: 8px; cursor: pointer;
+    color: var(--muted); user-select: none; transition: background .15s; }
+  .tab.on { background: var(--card); color: var(--text); font-weight: 600;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, .06); }
+  .card .site { font-size: 12px; color: var(--muted); letter-spacing: 0; }
+  .card .pub { font-size: 12px; color: var(--muted); letter-spacing: 0; }
   footer { text-align: center; color: var(--muted); font-size: 12px; margin-top: 30px; }
 </style>
 </head>
@@ -76,6 +85,11 @@
     <h1>前研日报</h1>
     <p>Frontier Research Daily · 图像编辑 / Agent / 视频模型 / 系统</p>
   </header>
+
+  <div class="tabs">
+    <div class="tab on" id="tabPaper" onclick="switchMode('paper')">📄 论文</div>
+    <div class="tab" id="tabBlog" onclick="switchMode('blog')">📝 博客</div>
+  </div>
 
   <div class="toolbar">
     <select id="dateSel"></select>
@@ -91,12 +105,17 @@
   <div class="toolbar" id="tagChips"></div>
   <div class="stats" id="stats"></div>
   <div id="list"></div>
-  <footer>由 GitHub Actions 每日自动抓取生成 · Powered by arXiv / HuggingFace / DeepSeek</footer>
+  <footer>由 GitHub Actions 每日自动抓取生成 · Powered by arXiv / HuggingFace / papers.cool / 技术博客 RSS</footer>
 </div>
 
 <script>
 const $ = id => document.getElementById(id);
-let papers = [], tagFilter = "", starOnly = false;
+let papers = [], blogs = [], tagFilter = "", starOnly = false;
+// mode: paper = 论文日报 / blog = 技术博客精选
+let mode = "paper";
+let paperFiles = [], blogFiles = [];
+// 博客默认隐藏与 AI 前沿无关的内容（推荐指数 1-2），选「全部评级」时才显示
+const BLOG_MIN_RATING = 3;
 // 重点阅读标记：localStorage 持久化（id -> 标记日期），跨设备不同步
 let starred = {};
 try { starred = JSON.parse(localStorage.getItem("qy_starred") || "{}") || {}; } catch (e) { starred = {}; }
@@ -172,7 +191,59 @@ function card(p, q) {
   </div>`;
 }
 
+function blogCard(a, q) {
+  const tags = (a.tags || []).map(t => `<span class="tag">${esc(t)}</span>`).join("");
+  const hl = (a.highlights || []).length
+    ? `<div class="hl">要点：</div><ul class="md" style="font-size:13px;margin:2px 0 0 18px;">${a.highlights.map(h => `<li>${mark(h, q)}</li>`).join("")}</ul>`
+    : "";
+  const oneline = a.oneline_zh ? `<div class="oneline">${mark(a.oneline_zh, q)}</div>` : "";
+  const summary = a.summary
+    ? `<div class="abstract" onclick="this.classList.toggle('open')" title="点击展开全文">${mark(a.summary, q)}</div>`
+    : "";
+  const enTitle = (a.title_zh && a.title_zh !== a.title)
+    ? `<div class="en-title">${mark(a.title, q)}</div>` : "";
+  const on = !!starred[a.id];
+  const bm = `<span class="bm${on ? " on" : ""}" onclick="event.stopPropagation();toggleStar('${a.id}')" title="${on ? "取消重点标记" : "标记为重点阅读"}">${on ? "★ 重点" : "☆ 标重点"}</span>`;
+  return `<div class="card">
+    <div class="stars"><span>${stars(a.rating || 0)}<span class="site"> ${esc(a.site || "")}</span></span>${bm}</div>
+    <h3>${mark(a.title_zh || a.title, q)}</h3>
+    ${enTitle}
+    <div class="meta"><span class="pub">${(a.published || "").slice(0, 10)}</span> · <a href="${a.url}" target="_blank" rel="noopener">原文</a></div>
+    <div>${tags}</div>
+    ${oneline}${hl}${summary}
+  </div>`;
+}
+
+function renderBlogs() {
+  const q = $("search").value.trim();
+  const minR = parseInt($("ratingSel").value, 10);
+  const effMin = minR || BLOG_MIN_RATING;
+  const list = blogs.filter(a =>
+    (a.rating || 0) >= effMin &&
+    (!starOnly || starred[a.id]) &&
+    (!tagFilter || (a.tags || []).concat(a.matched_directions || []).includes(tagFilter)) &&
+    (!q || (a.title + (a.title_zh || "") + (a.oneline_zh || "") + (a.site || "") +
+            (a.tags || []).join("") + (a.summary || "")).toLowerCase().includes(q.toLowerCase()))
+  );
+  const starCount = blogs.filter(a => starred[a.id]).length;
+  const chip = $("starChip");
+  chip.classList.toggle("on", starOnly);
+  chip.textContent = `★ 只看重点${starCount ? `（${starCount}）` : ""}`;
+
+  const must = list.filter(a => (a.rating || 0) >= 4);
+  const rest = list.filter(a => (a.rating || 0) < 4);
+  let html = "";
+  if (must.length) html += `<div class="sec-title">今日必读（${must.length}）</div>` + must.map(a => blogCard(a, q)).join("");
+  if (rest.length) html += `<div class="sec-title">值得一看（${rest.length}）</div>` + rest.map(a => blogCard(a, q)).join("");
+  $("list").innerHTML = html || `<div class="empty">没有匹配的博客</div>`;
+  renderMath();
+  const hidden = blogs.filter(a => (a.rating || 0) < effMin).length;
+  $("stats").textContent = `共 ${blogs.length} 篇博客 · 当前显示 ${list.length} 篇` +
+    (hidden && !minR ? `（已隐藏 ${hidden} 篇与 AI 前沿无关的内容，选「全部评级」可查看）` : "");
+}
+
 function render() {
+  if (mode === "blog") return renderBlogs();
   const q = $("search").value.trim();
   const minR = parseInt($("ratingSel").value, 10);
   let list = papers.filter(p =>
@@ -211,16 +282,14 @@ function renderMath() {
   }
 }
 
-async function loadDate(date) {
-  $("list").innerHTML = `<div class="empty">加载中…</div>`;
-  const res = await fetch(`data/${date}.jsonl`);
-  if (!res.ok) { $("list").innerHTML = `<div class="empty">该日期数据加载失败</div>`; return; }
-  const text = await res.text();
-  papers = text.trim().split("\n").filter(Boolean).map(l => { try { return JSON.parse(l); } catch (e) { return null; } }).filter(Boolean);
-  const allTags = [...new Set(papers.flatMap(p => p.tags || []))];
+function parseJsonl(text) {
+  return text.trim().split("\n").filter(Boolean)
+    .map(l => { try { return JSON.parse(l); } catch (e) { return null; } }).filter(Boolean);
+}
+
+function renderChips(allTags) {
   $("tagChips").innerHTML = allTags.slice(0, 14).map(t =>
     `<span class="chip${t === tagFilter ? " on" : ""}" onclick="tagFilter='${t === tagFilter ? "" : t}';loadChips();render()">${esc(t)}</span>`).join("");
-  render();
 }
 
 function loadChips() {
@@ -228,11 +297,71 @@ function loadChips() {
     c.classList.toggle("on", c.textContent === tagFilter));
 }
 
-async function init() {
-  const res = await fetch("assets/file-list.txt");
-  const files = (await res.text()).trim().split("\n").filter(Boolean);
-  const dates = files.map(f => f.replace(".jsonl", "")).sort().reverse();
+async function loadDate(date) {
+  $("list").innerHTML = `<div class="empty">加载中…</div>`;
+  const file = mode === "blog" ? `data/${date}.blogs.jsonl` : `data/${date}.jsonl`;
+  let res;
+  try { res = await fetch(file); } catch (e) { res = { ok: false }; }
+  if (!res.ok) {
+    papers = []; blogs = [];
+    renderChips([]);
+    $("list").innerHTML = `<div class="empty">${mode === "blog" ? "该日期没有博客数据" : "该日期数据加载失败"}</div>`;
+    $("stats").textContent = "";
+    return;
+  }
+  const text = await res.text();
+  if (mode === "blog") {
+    blogs = parseJsonl(text);
+    renderChips([...new Set(blogs.flatMap(a => a.tags || []))]);
+  } else {
+    papers = parseJsonl(text);
+    renderChips([...new Set(papers.flatMap(p => p.tags || []))]);
+  }
+  render();
+}
+
+function currentDates() {
+  const files = mode === "blog" ? blogFiles : paperFiles;
+  return files.map(f => f.replace(/\.blogs\.jsonl$/, "").replace(/\.jsonl$/, "")).sort().reverse();
+}
+
+function renderDateOptions() {
+  const dates = currentDates();
   $("dateSel").innerHTML = dates.map(d => `<option value="${d}">${d}</option>`).join("");
+  return dates;
+}
+
+function switchMode(m) {
+  if (m === mode) return;
+  mode = m;
+  $("tabPaper").classList.toggle("on", m === "paper");
+  $("tabBlog").classList.toggle("on", m === "blog");
+  tagFilter = "";
+  $("search").value = "";
+  const dates = renderDateOptions();
+  if (!dates.length) {
+    papers = []; blogs = [];
+    renderChips([]);
+    $("list").innerHTML = `<div class="empty">${m === "blog" ? "暂无博客数据，等待下一次流水线运行" : "暂无数据"}</div>`;
+    $("stats").textContent = "";
+    return;
+  }
+  loadDate(dates[0]);
+}
+
+async function init() {
+  const readList = async (path) => {
+    try {
+      const r = await fetch(path);
+      if (!r.ok) return [];
+      return (await r.text()).trim().split("\n").filter(Boolean);
+    } catch (e) { return []; }
+  };
+  [paperFiles, blogFiles] = await Promise.all([
+    readList("assets/file-list.txt"),
+    readList("assets/blog-list.txt"),
+  ]);
+  const dates = renderDateOptions();
   if (!dates.length) { $("list").innerHTML = `<div class="empty">暂无数据</div>`; return; }
   $("dateSel").onchange = () => loadDate($("dateSel").value);
   $("search").oninput = render;

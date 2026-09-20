@@ -45,7 +45,7 @@ jobs:
         run: |
           git config user.name "qianyan-bot"
           git config user.email "actions@github.com"
-          git add -f data/ assets/file-list.txt || true
+          git add -f data/ assets/file-list.txt assets/blog-list.txt 2>/dev/null || true
           if git diff --staged --quiet; then
             echo "无新数据，跳过提交"
           else

@@ -30,6 +30,7 @@
 
 - **规则打分先行**：关键词加权表 + 命中封顶 + 方向配额，防止单一方向霸榜，再决定哪些论文值得花 LLM token；
 - **多源数据**：arXiv 官方 API + HuggingFace Daily Papers（社区热度保底）+ papers.cool Kimi 深度解读；
+- **技术博客同样追踪**：17 个前沿实验室与知名技术大佬的 RSS/Atom 源，自动生成中文标题与要点——arXiv 周末与假日不更新时，博客就是当天的内容来源；
 - **零依赖**：纯 Python 标准库（`urllib` + `xml.etree`），无第三方包，克隆即跑；
 - **双输出**：本地 `data/` 下的 Markdown 日报存档 + GitHub Pages 交互式网页（搜索、标签过滤、LaTeX 公式渲染、重点标记）。
 
@@ -39,8 +40,11 @@
 
 站点地址：**<https://lililuya.github.io/paper_daily/>**
 
-- 顶部切换日期、关键词搜索、按方向标签过滤
+- 顶部 **📄 论文 / 📝 博客** 两个 tab，分别查看论文日报与技术博客精选
+- 切换日期、关键词搜索、按方向标签过滤
 - 每篇论文展示：中文标题、一句话摘要、abstract 原文、推荐指数、papers.cool Kimi Q&A 深度解读
+- 每篇博客展示：来源站点、发布日期、中文标题、一句话导读、要点、可展开的原文摘要
+- 与 AI 前沿无关的博客（推荐指数 1-2）默认隐藏，选「全部评级」可查看
 - 「☆ 标重点」按钮可标记重点阅读（存储在浏览器 localStorage，「只看重点」一键过滤）
 
 ### 追踪方向
@@ -58,16 +62,30 @@
 
 四个核心方向每日轮询配额选取，保证每个方向都有曝光；每日精选上限 25 篇。
 
+### 追踪的博客源
+
+共 17 个源，按类型分组。为避免高产作者霸榜，同一站点每日最多入选 5 篇。
+
+| 类型 | 来源 |
+|---|---|
+| 实验室与机构 | OpenAI、Google DeepMind、Microsoft Research、Apple ML、Hugging Face、NVIDIA Developer、BAIR Berkeley |
+| 技术大佬个人博客 | Simon Willison、Lilian Weng、Sebastian Raschka、Eugene Yan、Sander Dieleman、Nathan Lambert (Interconnects)、Latent Space、Tim Dettmers、Import AI、Andrej Karpathy |
+
+增删源只需在 `BLOG_FEEDS` 里改一行，详见 [CONFIG.md](CONFIG.md)。
+
 ### 每日流水线
 
 ```
 fetch_arxiv → fetch_hf → dedup → score → select_balanced → DeepSeek 增强 → Kimi 解读 → Markdown 日报 → 提交回 main → Pages 更新
+
+（独立流程）fetch_blog → 关键词打分 → DeepSeek 中文导读 → 博客日报 ────────────┘
 ```
 
 | 文件 | 作用 |
 |---|---|
-| `daily_arxiv/` | 抓取（arXiv / HF / papers.cool Kimi）与规则打分 |
+| `daily_arxiv/` | 抓取（arXiv / HF / papers.cool Kimi / 博客 RSS）与规则打分 |
 | `ai/enhance.py` | DeepSeek 中文增强（标题 / 摘要 / 推荐指数） |
+| `ai/enhance_blog.py` | 博客的 DeepSeek 中文导读（标题 / 导读 / 要点） |
 | `to_md/convert.py` | Markdown 日报生成 |
 | `index.html` | 网页前端（单文件，无外部 CDN 依赖） |
 | `data/` | 每日数据与日报存档（自动生成，勿手改） |

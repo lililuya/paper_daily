@@ -30,6 +30,7 @@ Hundreds of new papers appear on arXiv every day; manually scanning listings is 
 
 - **Rule-based scoring first**: a weighted keyword table with hit capping and per-direction quotas prevents a single direction from dominating, and decides which papers are worth LLM tokens;
 - **Multiple sources**: official arXiv API + HuggingFace Daily Papers (community upvotes as a safety net) + papers.cool Kimi in-depth Q&A;
+- **Tech blogs too**: 17 RSS/Atom feeds from frontier labs and well-known practitioners, with LLM-generated Chinese titles and takeaways — arXiv goes quiet on weekends and holidays, blogs keep the digest alive;
 - **Zero dependencies**: pure Python standard library (`urllib` + `xml.etree`) — clone and run;
 - **Dual output**: Markdown daily archives under `data/` + an interactive GitHub Pages site (search, tag filtering, LaTeX rendering, must-read marking).
 
@@ -39,9 +40,12 @@ Hundreds of new papers appear on arXiv every day; manually scanning listings is 
 
 Site: **<https://lililuya.github.io/paper_daily/>**
 
+- **📄 Papers / 📝 Blogs** tabs at the top switch between the paper digest and the tech-blog digest
 - Switch dates, search keywords, and filter by direction tags at the top
 - Each paper shows: Chinese title, one-line summary, original abstract, recommendation rating, and the papers.cool Kimi Q&A deep dive
-- The ☆ button marks a paper as must-read (stored in browser localStorage; a "must-read only" toggle filters the list)
+- Each blog post shows: site, publish date, Chinese title, one-line takeaway, key points, and a collapsible original excerpt
+- Blog posts unrelated to frontier AI (rating 1-2) are hidden by default; choose "all ratings" to reveal them
+- The ☆ button marks an item as must-read (stored in browser localStorage; a "must-read only" toggle filters the list)
 
 ### Tracked Directions
 
@@ -58,16 +62,30 @@ Site: **<https://lililuya.github.io/paper_daily/>**
 
 The four core directions are selected round-robin with quotas so every direction gets exposure; the daily digest is capped at 25 papers.
 
+### Tracked Blogs
+
+17 feeds, grouped by type. Individual blogs are ordered so prolific authors cannot crowd out the rest (max 5 posts per site per day).
+
+| Type | Sources |
+|---|---|
+| Labs & institutions | OpenAI, Google DeepMind, Microsoft Research, Apple ML, Hugging Face, NVIDIA Developer, BAIR Berkeley |
+| Practitioners | Simon Willison, Lilian Weng, Sebastian Raschka, Eugene Yan, Sander Dieleman, Nathan Lambert (Interconnects), Latent Space, Tim Dettmers, Import AI, Andrej Karpathy |
+
+Adding or removing a source is one line in `BLOG_FEEDS` — see [CONFIG.md](CONFIG.md).
+
 ### Daily Pipeline
 
 ```
 fetch_arxiv → fetch_hf → dedup → score → select_balanced → DeepSeek enhance → Kimi Q&A → Markdown digest → commit to main → Pages update
+
+(feeds) fetch_blog → keyword scoring → DeepSeek Chinese takeaway → blog digest ─┘
 ```
 
 | Path | Purpose |
 |---|---|
-| `daily_arxiv/` | Fetchers (arXiv / HF / papers.cool Kimi) and rule-based scoring |
+| `daily_arxiv/` | Fetchers (arXiv / HF / papers.cool Kimi / blogs) and rule-based scoring |
 | `ai/enhance.py` | DeepSeek enhancement (Chinese title / summary / rating) |
+| `ai/enhance_blog.py` | DeepSeek Chinese takeaways for blog posts |
 | `to_md/convert.py` | Markdown digest generation |
 | `index.html` | Web frontend (single file, no external CDN) |
 | `data/` | Daily data and digest archive (auto-generated, do not edit) |

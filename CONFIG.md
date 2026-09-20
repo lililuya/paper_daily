@@ -12,8 +12,12 @@
   ├─ 4. DeepSeek 增强（中文标题/摘要/推荐指数，约 25 篇）
   ├─ 5. 抓取 papers.cool 的 Kimi 深度解读（Q&A）
   ├─ 6. 生成 data/日期.md 日报 + data/日期.jsonl 数据
-  └─ 7. 自动提交回 GitHub → Pages 网站更新
+  ├─ 7. 博客流水线（独立）：17 个 RSS 源 → 关键词打分 → DeepSeek 中文导读
+  │     → data/日期.blogs.jsonl + .blogs.md
+  └─ 8. 自动提交回 GitHub → Pages 网站更新
 ```
+
+博客流水线是**独立**的：arXiv 周末与假日没有新论文时，论文部分会跳过，但博客照常抓取——所以网站每天都有内容更新。
 
 | 文件 | 作用 | 改它的场景 |
 |---|---|---|
@@ -110,7 +114,58 @@ PAPERS_COOL_BACKFILL_BUDGET = 600  # 补抓总预算（秒）
 
 **papers.cool 的 Kimi 生成是串行排队的**：未缓存的论文要么立刻被弹回（HTTP 错误，服务器忙），要么占住生成位 2-6 分钟。所以当日抓不完是常态——每日运行会自动回头补最近 2 天缺失的（已缓存的秒回），覆盖率逐步补齐。也可手动补：Actions → Run workflow，参数填 `--backfill-kimi 2026-09-18`（逗号可分隔多天）。
 
-## 七、DeepSeek / LLM 配置
+## 七、技术博客追踪
+
+与论文完全独立的另一条流水线：抓取 17 个技术博客的 RSS，生成中文标题与要点，输出到 `data/日期.blogs.jsonl`，网页上有独立的「📝 博客」tab。
+
+### 7.1 增删博客源
+
+编辑 `daily_arxiv/config.py` 的 `BLOG_FEEDS`，加一行即可（改完提交推送，下次运行生效）：
+
+```python
+BLOG_FEEDS = [
+    {"key": "simonwillison", "name": "Simon Willison", "url": "https://simonwillison.net/atom/everything/"},
+    # 加自己的源：key 要唯一（用于去重与筛选），name 是页面显示名，url 是 RSS/Atom 地址
+    {"key": "myblog", "name": "某某的博客", "url": "https://example.com/feed.xml"},
+]
+```
+
+删源就是删掉对应那一行。`key` 一旦用过就别再改——已抓过的文章靠它去重，改了会导致历史文章重复入选。
+
+**怎么找 RSS 地址**：多数博客在页面底部或 `<head>` 里有 `application/rss+xml` / `atom+xml` 链接；常见后缀是 `/feed`、`/rss`、`/feed.xml`、`/index.xml`、`/atom.xml`。
+
+### 7.2 抓取与筛选参数
+
+```python
+BLOG_LOOKBACK_DAYS = 7      # 只收发布时间在此窗口内的文章（靠 seen_blogs.json 去重，不会重复）
+BLOG_MAX_ITEMS = 30         # 每日进入 LLM 增强的候选上限
+BLOG_MAX_PER_SITE = 5       # 单源最多入选几篇（防高产博客霸榜）
+BLOG_SUMMARY_CHARS = 1500   # 正文截断长度，即喂给 LLM 的字数
+BLOG_FETCH_WORKERS = 6      # 并发抓源的线程数
+BLOG_PAGE_SUMMARY_MIN = 80  # 摘要短于此长度时，回退抓文章页的 og:description
+BLOG_PAGE_LIMIT = 25        # 单次运行最多回退抓多少篇页面
+BLOG_MAX_ENTRIES_PER_FEED = 30  # 每个源最多读多少条（OpenAI 这类全站 feed 有上千条）
+```
+
+想临时关掉博客：设环境变量 `BLOG_ENABLED=0`（或在 workflow 里加）。
+
+### 7.3 为什么有些源的摘要是空的
+
+HuggingFace 的 feed 只有标题和链接、DeepMind 的 `<description>` 是空标签，这两类必须回退抓文章页的 `og:description`（`BLOG_PAGE_SUMMARY_MIN` 以下自动触发）。若某个源抓不到正文，LLM 只能看到标题，中文导读质量会下降——加源后建议先本地跑一次看日志。
+
+### 7.4 博客的评分与展示规则
+
+- 关键词打分复用论文的 `INTERESTS` 表，但**只用于排序和打标签，不做淘汰**（博客数量本来就少，全部收下更符合预期）；
+- LLM 会给每篇打推荐指数，并判断 `relevant`：与 AI 前沿无关的内容（个人生活、摄影、无关产品发布）给 1-2 分；
+- 网页**默认只显示 3 分及以上**，选「全部评级」能看到 1-2 分的（数据都在，只是默认折叠）。
+
+### 7.5 已知限制
+
+- 部分源（量子位等中文媒体）的 feed 只给几十字摘要，页面也无完整正文，无法生成有效导读，故未纳入；
+- Anthropic、Meta AI、colah、李沐的博客没有可用的 RSS，如需追踪只能自行加页面解析；
+- Google Research 与 Chip Huyen 的博客已停更（分别为 2024、2025 年），未纳入。
+
+## 八、DeepSeek / LLM 配置
 
 云端在 GitHub 仓库 **Settings → Secrets and variables → Actions** 配置：
 
@@ -122,7 +177,7 @@ PAPERS_COOL_BACKFILL_BUDGET = 600  # 补抓总预算（秒）
 
 本地跑完整版：设置环境变量 `OPENAI_API_KEY` 后运行（见下节）。没配 Key 时自动降级为 dry-run（无中文摘要，仅规则打分）。
 
-## 八、运行方式与生效时间
+## 九、运行方式与生效时间
 
 **云端自动**：每天北京时间 09:30（cron 在 `.github/workflows/run.yml`，改 `cron: "30 1 * * *"` 的 UTC 时间，北京时间 = UTC+8）。
 
@@ -154,13 +209,14 @@ python run_pipeline.py --date 2026-09-17 --no-dedup
 2. 提交并推送到 GitHub `main` 分支（本地项目目录内 `git add -A && git commit -m "..." && git push`）
 3. **当天数据不会变**——新配置从下一次运行生效（第二天 09:30，或立刻到 Actions 页面手动 Run workflow）
 
-## 九、网页前端说明
+## 十、网页前端说明
 
 - `index.html` 是无依赖单文件；KaTeX 公式渲染库已打包在 `assets/katex/`（勿删）
-- 「重点阅读」标记存在**浏览器本地**（localStorage）：换浏览器/设备不同步，清浏览器缓存会丢失
-- 数据文件在 `data/日期.jsonl`，网站按 `assets/file-list.txt` 列出的日期加载
+- 顶部 **📄 论文 / 📝 博客** 两个 tab；日期下拉会按当前 tab 各自的数据重建（博客日期来自 `assets/blog-list.txt`）
+- 「重点阅读」标记存在**浏览器本地**（localStorage）：换浏览器/设备不同步，清浏览器缓存会丢失。论文与博客共用同一套标记，条目 id 不冲突（论文是 arXiv id，博客是 `blog:站点:哈希`）
+- 数据文件：论文 `data/日期.jsonl`（清单 `assets/file-list.txt`），博客 `data/日期.blogs.jsonl`（清单 `assets/blog-list.txt`）
 
-## 十、常见问题
+## 十一、常见问题
 
 | 问题 | 处理 |
 |---|---|
@@ -169,3 +225,7 @@ python run_pipeline.py --date 2026-09-17 --no-dedup
 | Actions 运行失败 | Actions 页面点进失败的 run 看日志；arXiv 偶发限流会自动重试 |
 | 想暂时停掉每日任务 | `.github/workflows/run.yml` 里注释掉 `schedule:` 段，或 Settings → Actions 禁用 |
 | 网页改了不生效 | Ctrl+F5 强刷（GitHub Pages 有约 10 分钟缓存） |
+| 博客 tab 显示「暂无博客数据」 | 该日期确实没有新博文（源都没更新）；看 `assets/blog-list.txt` 里有哪些日期有数据 |
+| 某天漏看了某篇博文 | 不会漏：回看窗口 7 天 + 去重记录，只要 7 天内运行过一次就会被抓到并归入当天日报 |
+| 博客里混进了无关内容（如摄影、生活随笔） | LLM 会判为 1-2 分并在网页默认隐藏；若仍觉得吵，把该源从 `BLOG_FEEDS` 删掉 |
+| 某个博客源抓不到/无摘要 | 看运行日志里的 `[blog] xxx 抓取失败`；该源可能改版或反爬，换一个 RSS 地址即可 |
