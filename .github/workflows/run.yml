@@ -2,8 +2,10 @@ name: qianyan-daily
 
 on:
   schedule:
-    # UTC 15:00 = 北京时间 23:00，覆盖 arXiv 当日更新
-    - cron: "0 15 * * *"
+    # UTC 01:30 = 北京时间 09:30。arXiv 每日新论文在北京时间早上 8 点左右发布，
+    # 此时抓取可拿到当天全部新提交；放在晚上抓只会重复同批论文（去重后 0 新增）。
+    # 且早间运行即使有 GitHub cron 延迟也不会跨日，文件日期与 commit 日期一致。
+    - cron: "30 1 * * *"
   workflow_dispatch:
     inputs:
       args:

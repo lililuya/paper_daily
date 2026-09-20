@@ -99,7 +99,7 @@ git clone https://github.com/lililuya/paper_daily.git
 
 3. 启用 Pages：**Settings → Pages → Build and deployment → Source: Deploy from a branch**，Branch 选 **main** / `(root)`。
 
-4. 流水线每天北京时间 23:00 自动运行，也可在 **Actions → Daily Pipeline → Run workflow** 手动触发。
+4. 流水线每天北京时间 09:30（arXiv 当日新论文发布后）自动运行，也可在 **Actions → Daily Pipeline → Run workflow** 手动触发。
 
 ### 本地运行
 

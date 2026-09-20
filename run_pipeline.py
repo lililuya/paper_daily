@@ -149,36 +149,41 @@ def main() -> int:
         print(f"[dedup] 跳过（--no-dedup），共 {len(fresh)} 篇", flush=True)
     else:
         fresh, new_seen = dedup(all_papers)
-        if not fresh:
-            print("去重后无新论文，跳过今日日报", flush=True)
-            return 0
 
-    # 3. 打分过滤 + 核心方向配额选取
-    kept, _ = score_and_filter(fresh)
-    candidates = select_balanced(kept, MAX_LLM_PAPERS)
+    if not fresh:
+        # arXiv 周末与假日不更新，抓到的仍是历史论文，属正常情况。此时不生成新日报
+        # （避免产出空报告或覆盖已有内容），但继续执行下面的 Kimi 补抓，把覆盖率补上去。
+        print(
+            "[dedup] 本次无新论文（arXiv 周末与假日通常不更新），跳过日报生成，仅补抓历史 Kimi",
+            flush=True,
+        )
+    else:
+        # 3. 打分过滤 + 核心方向配额选取
+        kept, _ = score_and_filter(fresh)
+        candidates = select_balanced(kept, MAX_LLM_PAPERS)
 
-    # 4. LLM 增强
-    enhanced = enhance(candidates, dry_run=args.dry_run)
+        # 4. LLM 增强
+        enhanced = enhance(candidates, dry_run=args.dry_run)
 
-    # 5. papers.cool Kimi 摘要（可选，受时间预算约束）
-    fetch_kimi(enhanced, budget_seconds=PAPERS_COOL_BUDGET)
+        # 5. papers.cool Kimi 摘要（可选，受时间预算约束）
+        fetch_kimi(enhanced, budget_seconds=PAPERS_COOL_BUDGET)
 
-    # 6. 存档 JSONL + 生成 Markdown（同日重跑与已有数据合并，不覆盖已发布内容）
-    os.makedirs(DATA_DIR, exist_ok=True)
-    jsonl_path = os.path.join(DATA_DIR, f"{args.date}.jsonl")
-    merged = merge_with_existing(jsonl_path, enhanced)
-    with open(jsonl_path, "w", encoding="utf-8") as f:
-        for p in merged:
-            f.write(json.dumps(p, ensure_ascii=False) + "\n")
+        # 6. 存档 JSONL + 生成 Markdown（同日重跑与已有数据合并，不覆盖已发布内容）
+        os.makedirs(DATA_DIR, exist_ok=True)
+        jsonl_path = os.path.join(DATA_DIR, f"{args.date}.jsonl")
+        merged = merge_with_existing(jsonl_path, enhanced)
+        with open(jsonl_path, "w", encoding="utf-8") as f:
+            for p in merged:
+                f.write(json.dumps(p, ensure_ascii=False) + "\n")
 
-    convert(args.date, merged, stats={"total": len(all_papers)})
+        convert(args.date, merged, stats={"total": len(all_papers)})
 
-    # 7. 更新 seen_ids 和文件列表
-    if not args.no_dedup:
-        save_seen_ids(new_seen)
-    update_file_list()
+        # 7. 更新 seen_ids 和文件列表
+        if not args.no_dedup:
+            save_seen_ids(new_seen)
+        update_file_list()
 
-    print(f"===== 完成：{len(enhanced)} 篇精选 / {len(all_papers)} 篇抓取 =====", flush=True)
+        print(f"===== 完成：{len(enhanced)} 篇精选 / {len(all_papers)} 篇抓取 =====", flush=True)
 
     # 8. 自动补抓最近几天缺失的 Kimi（papers.cool 缓存后秒回，逐步补齐覆盖率）
     if PAPERS_COOL_BACKFILL_DAYS > 0 and not args.no_dedup:

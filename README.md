@@ -99,7 +99,7 @@ git clone https://github.com/lililuya/paper_daily.git
 
 3. Enable Pages: **Settings → Pages → Build and deployment → Source: Deploy from a branch**, choose **main** / `(root)`.
 
-4. The pipeline runs daily at 23:00 Beijing time (15:00 UTC), or trigger it manually via **Actions → Daily Pipeline → Run workflow**.
+4. The pipeline runs daily at 09:30 Beijing time (01:30 UTC) — right after arXiv publishes the day's new submissions — or trigger it manually via **Actions → Daily Pipeline → Run workflow**.
 
 ### Local Run
 

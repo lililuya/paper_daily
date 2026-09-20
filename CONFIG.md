@@ -5,7 +5,7 @@
 ## 一、系统全貌
 
 ```
-每日自动流程（GitHub Actions，默认北京时间 23:00）
+每日自动流程（GitHub Actions，默认北京时间 09:30）
   ┌─ 1. 抓取 arXiv（按类别+近2天） + HuggingFace Daily Papers
   ├─ 2. 去重（seen_ids.json 记录历史论文 ID）
   ├─ 3. 规则打分（关键词加权，筛选出候选）
@@ -124,7 +124,11 @@ PAPERS_COOL_BACKFILL_BUDGET = 600  # 补抓总预算（秒）
 
 ## 八、运行方式与生效时间
 
-**云端自动**：每天北京时间 23:00（cron 在 `.github/workflows/run.yml`，改 `cron: "0 15 * * *"` 的 UTC 时间，北京时间 = UTC+8）。
+**云端自动**：每天北京时间 09:30（cron 在 `.github/workflows/run.yml`，改 `cron: "30 1 * * *"` 的 UTC 时间，北京时间 = UTC+8）。
+
+> **为什么定在早上 9:30 而不是晚上？** arXiv 的新论文在北京时间早上 8 点左右批量发布。晚上跑抓到的还是同一批论文，去重后是 0 新增（等于白跑）；早上跑才能拿到当天全部新提交。另外 GitHub 的 cron 常有 0-3 小时延迟，早上跑即使延迟也不会跨日，文件名日期与提交日期一致。
+
+**arXiv 周末与假日不更新**：此时抓取到的新增为 0，流水线会跳过日报生成（不产出空报告），但会继续补抓此前缺失的 Kimi 解读。
 
 **云端手动**：仓库 → Actions → Daily Pipeline → Run workflow，可选填参数（如 `--no-dedup`）。
 
@@ -148,7 +152,7 @@ python run_pipeline.py --date 2026-09-17 --no-dedup
 
 1. 改 `daily_arxiv/config.py` 等文件
 2. 提交并推送到 GitHub `main` 分支（本地项目目录内 `git add -A && git commit -m "..." && git push`）
-3. **当天数据不会变**——新配置从下一次运行生效（第二天 23:00，或立刻到 Actions 页面手动 Run workflow）
+3. **当天数据不会变**——新配置从下一次运行生效（第二天 09:30，或立刻到 Actions 页面手动 Run workflow）
 
 ## 九、网页前端说明
 
